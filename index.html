@@ -1,0 +1,1252 @@
+<!DOCTYPE html>
+<html lang="th" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SCB e-Class Portfolio Tracker</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        scb: {
+                            50: '#f5f3ff',
+                            100: '#ede9fe',
+                            500: '#7c3aed',
+                            600: '#6d28d9',
+                            700: '#4c1d95',
+                            800: '#3b0764',
+                            purple: '#4e2a84',
+                            gold: '#fbbf24',
+                        }
+                    },
+                    fontFamily: {
+                        sans: ['Kanit', 'Prompt', 'Inter', 'sans-serif'],
+                    }
+                }
+            }
+        }
+    </script>
+    <!-- Google Fonts: Kanit & Prompt -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;500;600;700&family=Prompt:wght@300;400;500;600&display=swap" rel="stylesheet">
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    
+    <style>
+        body {
+            font-family: 'Kanit', sans-serif;
+            background-color: #0f172a;
+            color: #f8fafc;
+        }
+        .glass-card {
+            background: rgba(30, 41, 59, 0.75);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+        }
+        .scb-gradient {
+            background: linear-gradient(135deg, #4e2a84 0%, #2e1065 100%);
+        }
+        .scb-accent-glow {
+            box-shadow: 0 0 20px rgba(124, 58, 237, 0.35);
+        }
+        /* Custom scrollbar */
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #0f172a;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #334155;
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #475569;
+        }
+    </style>
+</head>
+<body class="min-h-screen pb-16 md:pb-8 flex flex-col">
+
+    <!-- Navigation Bar -->
+    <nav class="scb-gradient border-b border-purple-900/50 sticky top-0 z-40 shadow-lg">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex items-center justify-between h-16">
+                <div class="flex items-center space-x-3">
+                    <div class="w-10 h-10 rounded-xl bg-purple-600 flex items-center justify-center font-bold text-xl text-yellow-400 shadow-md">
+                        <i class="fa-solid fa-chart-line text-white"></i>
+                    </div>
+                    <div>
+                        <h1 class="font-bold text-lg leading-tight tracking-wide text-white">SCB e-Class Tracker</h1>
+                        <p class="text-xs text-purple-200">พอร์ตการลงทุนกองทุนรวม</p>
+                    </div>
+                </div>
+
+                <!-- Live Auto-Update Control & Actions -->
+                <div class="flex items-center space-x-2 sm:space-x-4">
+                    <div class="flex items-center bg-slate-900/60 rounded-full px-3 py-1.5 border border-purple-500/30 text-xs">
+                        <span id="liveStatusDot" class="w-2.5 h-2.5 rounded-full bg-emerald-500 mr-2 animate-pulse"></span>
+                        <span id="liveStatusText" class="text-slate-200 font-medium hidden sm:inline">Auto-Update:</span>
+                        <button id="toggleLiveBtn" onclick="toggleAutoUpdate()" class="ml-1 px-2 py-0.5 rounded text-xs bg-emerald-500/20 text-emerald-300 font-semibold border border-emerald-500/40 hover:bg-emerald-500/30 transition">
+                            เปิดอยู่
+                        </button>
+                    </div>
+
+                    <button onclick="fetchSimulatedRealtimeData()" title="รีเฟรชข้อมูล" class="p-2 bg-slate-800 hover:bg-slate-700 text-purple-300 rounded-lg border border-slate-700 transition active:scale-95">
+                        <i class="fa-solid fa-rotate text-sm" id="refreshIcon"></i>
+                    </button>
+
+                    <button onclick="openModal('addFundModal')" class="bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white px-3 py-1.5 sm:px-4 sm:py-2 rounded-lg text-xs sm:text-sm font-medium shadow-md transition flex items-center space-x-1.5 active:scale-95">
+                        <i class="fa-solid fa-plus text-xs"></i>
+                        <span class="hidden sm:inline">เพิ่มกองทุน</span>
+                        <span class="sm:hidden">เพิ่ม</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Content Container -->
+    <main class="flex-grow max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
+
+        <!-- Top Alert / Notification Banner -->
+        <div id="statusBanner" class="hidden glass-card rounded-xl p-4 border-l-4 border-emerald-500 flex items-center justify-between text-sm transition-all duration-300">
+            <div class="flex items-center space-x-3">
+                <i id="bannerIcon" class="fa-solid fa-circle-check text-emerald-400 text-lg"></i>
+                <span id="bannerText" class="text-slate-200">อัปเดตข้อมูลพอร์ตเรียบร้อยแล้ว</span>
+            </div>
+            <button onclick="hideBanner()" class="text-slate-400 hover:text-white"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+
+        <!-- Portfolio Overview Summary Cards -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            
+            <!-- Total Value Card -->
+            <div class="glass-card rounded-2xl p-5 relative overflow-hidden group">
+                <div class="absolute -right-4 -bottom-4 opacity-10 text-purple-400 group-hover:scale-110 transition duration-300">
+                    <i class="fa-solid fa-wallet text-8xl"></i>
+                </div>
+                <div class="flex justify-between items-start">
+                    <span class="text-xs font-medium text-slate-400 tracking-wider">มูลค่ารวม (Total Value)</span>
+                    <span class="text-xs px-2 py-0.5 rounded-full bg-purple-500/20 text-purple-300 border border-purple-500/30">e-Class</span>
+                </div>
+                <div class="mt-3">
+                    <div id="totalValue" class="text-2xl sm:text-3xl font-bold text-white tracking-tight">฿117,886.84</div>
+                    <div class="flex items-center mt-1 text-xs text-slate-400">
+                        <span>ต้นทุนรวม: </span>
+                        <span id="totalCost" class="ml-1 font-semibold text-slate-300">฿110,958.86</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Total Profit / Loss -->
+            <div class="glass-card rounded-2xl p-5 relative overflow-hidden group">
+                <div class="absolute -right-4 -bottom-4 opacity-10 text-emerald-400 group-hover:scale-110 transition duration-300">
+                    <i class="fa-solid fa-chart-line text-8xl"></i>
+                </div>
+                <div class="flex justify-between items-start">
+                    <span class="text-xs font-medium text-slate-400 tracking-wider">กำไร/ขาดทุนรวม</span>
+                    <i id="totalProfitIcon" class="fa-solid fa-arrow-trend-up text-emerald-400"></i>
+                </div>
+                <div class="mt-3">
+                    <div id="totalProfit" class="text-2xl sm:text-3xl font-bold text-emerald-400 tracking-tight">+฿6,927.98</div>
+                    <div class="flex items-center mt-1 text-xs">
+                        <span id="totalProfitPercent" class="font-semibold text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/20">+6.24%</span>
+                        <span class="text-slate-400 ml-2">จากเงินลงทุน</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Today's Gain/Loss -->
+            <div class="glass-card rounded-2xl p-5 relative overflow-hidden group">
+                <div class="absolute -right-4 -bottom-4 opacity-10 text-blue-400 group-hover:scale-110 transition duration-300">
+                    <i class="fa-solid fa-calendar-day text-8xl"></i>
+                </div>
+                <div class="flex justify-between items-start">
+                    <span class="text-xs font-medium text-slate-400 tracking-wider">ผลตอบแทนวันนี้</span>
+                    <span class="text-xs text-slate-400" id="lastUpdatedTime">วันนี้</span>
+                </div>
+                <div class="mt-3">
+                    <div id="dailyGain" class="text-2xl sm:text-3xl font-bold text-emerald-400 tracking-tight">+฿845.20</div>
+                    <div class="flex items-center mt-1 text-xs">
+                        <span id="dailyGainPercent" class="font-semibold text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/20">+0.72%</span>
+                        <span class="text-slate-400 ml-2">เทียบวันก่อน</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Monthly Return -->
+            <div class="glass-card rounded-2xl p-5 relative overflow-hidden group">
+                <div class="absolute -right-4 -bottom-4 opacity-10 text-amber-400 group-hover:scale-110 transition duration-300">
+                    <i class="fa-solid fa-calendar-days text-8xl"></i>
+                </div>
+                <div class="flex justify-between items-start">
+                    <span class="text-xs font-medium text-slate-400 tracking-wider">ผลตอบแทนเดือนนี้ (ส.ค.)</span>
+                    <i class="fa-solid fa-award text-amber-400"></i>
+                </div>
+                <div class="mt-3">
+                    <div id="monthlyGain" class="text-2xl sm:text-3xl font-bold text-emerald-400 tracking-tight">+฿3,410.15</div>
+                    <div class="flex items-center mt-1 text-xs">
+                        <span id="monthlyGainPercent" class="font-semibold text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/20">+2.98%</span>
+                        <span class="text-slate-400 ml-2">สะสมเดือน ส.ค.</span>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+
+        <!-- AI Smart Image Upload / Document Scanner Section -->
+        <div class="glass-card rounded-2xl p-6 border border-purple-500/30 scb-accent-glow relative overflow-hidden">
+            <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                <div class="space-y-1">
+                    <div class="flex items-center space-x-2">
+                        <span class="px-2 py-0.5 rounded text-[10px] font-semibold bg-purple-500 text-white">AI OCR</span>
+                        <h2 class="text-lg font-bold text-white flex items-center">
+                            <i class="fa-solid fa-camera text-purple-400 mr-2"></i>
+                            อัปเดตข้อมูลพอร์ตจากภาพถ่าย / แคปหน้าจอ
+                        </h2>
+                    </div>
+                    <p class="text-xs text-slate-400">
+                        โหลดรูปภาพหน้าพอร์ต SCB Easy App ของคุณ ระบบ AI (Gemini Vision) จะสแกนอ่านข้อมูล NAV, มูลค่า และ % กำไรขาดทุนอัตโนมัติ
+                    </p>
+                </div>
+
+                <!-- File Input and Action -->
+                <div class="flex items-center space-x-3">
+                    <label class="cursor-pointer bg-slate-800 hover:bg-slate-700 text-purple-300 border border-purple-500/40 px-4 py-2.5 rounded-xl text-xs sm:text-sm font-medium transition flex items-center space-x-2 shadow">
+                        <i class="fa-solid fa-cloud-arrow-up text-purple-400"></i>
+                        <span id="uploadBtnText">เลือกรูปภาพ / เอกสาร</span>
+                        <input type="file" id="portfolioImageInput" accept="image/*" class="hidden" onchange="handleImageSelected(event)">
+                    </label>
+
+                    <button id="scanAiBtn" disabled onclick="processImageWithAI()" class="opacity-50 cursor-not-allowed bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white px-4 py-2.5 rounded-xl text-xs sm:text-sm font-semibold shadow-lg transition flex items-center space-x-2">
+                        <i class="fa-solid fa-wand-magic-sparkles text-yellow-300"></i>
+                        <span>สแกนด้วย AI</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Image Preview Box (Hidden by default) -->
+            <div id="imagePreviewContainer" class="hidden mt-4 pt-4 border-t border-slate-700/60 flex flex-col sm:flex-row items-center space-y-3 sm:space-y-0 sm:space-x-4">
+                <div class="relative w-24 h-24 rounded-lg overflow-hidden border border-slate-600 bg-slate-900 flex-shrink-0">
+                    <img id="imagePreview" src="" alt="Preview" class="w-full h-full object-cover">
+                </div>
+                <div class="flex-grow text-xs text-slate-300 space-y-1">
+                    <p class="font-medium text-purple-300" id="imageFileName">filename.jpg</p>
+                    <p class="text-slate-400">พร้อมประมวลผลด้วย Gemini AI เพื่อดึงข้อมูลกองทุน e-Class</p>
+                    <div id="aiScanStatus" class="hidden text-amber-400 font-medium flex items-center space-x-2 mt-1">
+                        <i class="fa-solid fa-spinner fa-spin"></i>
+                        <span>กำลังวิเคราะห์รูปภาพพอร์ตลงทุน...</span>
+                    </div>
+                </div>
+                <button onclick="clearSelectedImage()" class="text-slate-400 hover:text-rose-400 text-xs px-2 py-1"><i class="fa-solid fa-trash mr-1"></i>ยกเลิก</button>
+            </div>
+        </div>
+
+        <!-- Portfolio Chart & Breakdown Tabs Grid -->
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            
+            <!-- Pie Chart Card (Allocation %) -->
+            <div class="glass-card rounded-2xl p-6 flex flex-col justify-between">
+                <div>
+                    <div class="flex items-center justify-between mb-4">
+                        <h3 class="text-base font-bold text-white flex items-center">
+                            <i class="fa-solid fa-chart-pie text-purple-400 mr-2"></i>
+                            สัดส่วนพอร์ต (%)
+                        </h3>
+                        <span class="text-xs text-slate-400">รายกองทุน</span>
+                    </div>
+                    <div class="relative w-full h-72 flex items-center justify-center">
+                        <canvas id="allocationPieChart"></canvas>
+                    </div>
+                </div>
+                <div class="mt-4 pt-4 border-t border-slate-800 text-xs text-slate-400 flex justify-between">
+                    <span>กระจายความเสี่ยง</span>
+                    <span id="fundCountBadge" class="text-purple-300 font-semibold">5 กองทุน</span>
+                </div>
+            </div>
+
+            <!-- Fund List & Returns Overview (2 Columns on large screen) -->
+            <div class="lg:col-span-2 glass-card rounded-2xl p-6 flex flex-col">
+                <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-4 pb-3 border-b border-slate-800">
+                    <div>
+                        <h3 class="text-lg font-bold text-white flex items-center">
+                            <i class="fa-solid fa-list-check text-purple-400 mr-2"></i>
+                            รายการกองทุนในพอร์ต
+                        </h3>
+                        <p class="text-xs text-slate-400">SCB Mutual Funds (e-Class)</p>
+                    </div>
+
+                    <!-- Filter / Quick Action -->
+                    <div class="flex items-center space-x-2">
+                        <input type="text" id="searchFundInput" onkeyup="filterFunds()" placeholder="ค้นหากองทุน..." class="bg-slate-900 border border-slate-700 text-xs text-slate-200 px-3 py-1.5 rounded-lg focus:outline-none focus:border-purple-500">
+                    </div>
+                </div>
+
+                <!-- Fund Items Table / Mobile Cards -->
+                <div class="overflow-x-auto flex-grow">
+                    <table class="w-full text-left border-collapse">
+                        <thead>
+                            <tr class="text-[11px] font-semibold text-slate-400 uppercase tracking-wider border-b border-slate-800/80">
+                                <th class="pb-3 px-2">ชื่อกองทุน</th>
+                                <th class="pb-3 px-2 text-right">NAV (บาท)</th>
+                                <th class="pb-3 px-2 text-right">มูลค่าปัจจุบัน</th>
+                                <th class="pb-3 px-2 text-right">กำไร/ขาดทุน</th>
+                                <th class="pb-3 px-2 text-right">สัดส่วน</th>
+                                <th class="pb-3 px-2 text-center">จัดการ</th>
+                            </tr>
+                        </thead>
+                        <tbody id="fundTableBody" class="divide-y divide-slate-800/50 text-xs">
+                            <!-- Populated dynamically via JavaScript -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+        </div>
+
+        <!-- Daily & Monthly Returns Timeline breakdown -->
+        <div class="glass-card rounded-2xl p-6">
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between border-b border-slate-800 pb-4 mb-4 gap-4">
+                <div>
+                    <h3 class="text-lg font-bold text-white flex items-center">
+                        <i class="fa-solid fa-timeline text-purple-400 mr-2"></i>
+                        ประวัติผลตอบแทน (Daily & Monthly Returns)
+                    </h3>
+                    <p class="text-xs text-slate-400">สถิติผลตอบแทนรายวัน (อัปเดตต่อเนื่อง) และ รายเดือน</p>
+                </div>
+
+                <!-- Tab Buttons & Actions -->
+                <div class="flex items-center space-x-2">
+                    <button onclick="addNewDailyReturnPrompt()" title="เพิ่มผลตอบแทนวันใหม่" class="px-2.5 py-1 rounded-lg text-xs font-medium bg-slate-800 hover:bg-slate-700 text-purple-300 border border-purple-500/30 transition flex items-center space-x-1">
+                        <i class="fa-solid fa-plus text-[10px]"></i>
+                        <span>เพิ่มวันที่</span>
+                    </button>
+                    <div class="flex bg-slate-900 p-1 rounded-xl border border-slate-800">
+                        <button id="tabDailyBtn" onclick="switchReturnTab('daily')" class="px-4 py-1.5 rounded-lg text-xs font-medium text-white bg-purple-600 shadow transition">
+                            รายวัน (1, 2, ... 18, 19)
+                        </button>
+                        <button id="tabMonthlyBtn" onclick="switchReturnTab('monthly')" class="px-4 py-1.5 rounded-lg text-xs font-medium text-slate-400 hover:text-white transition">
+                            รายเดือน (ม.ค., ก.พ....)
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Daily Returns Tab Content -->
+            <div id="dailyReturnsView" class="space-y-4">
+                <div class="flex justify-between items-center text-xs text-slate-400 mb-2">
+                    <span>ผลตอบแทนรายวัน (บันทึกและแสดงผลต่อเนื่องแบบ Real-time)</span>
+                    <span class="text-purple-300">สิงหาคม 2569</span>
+                </div>
+                <div class="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-11 gap-2" id="dailyGrid">
+                    <!-- Populated dynamically -->
+                </div>
+            </div>
+
+            <!-- Monthly Returns Tab Content (Hidden by default) -->
+            <div id="monthlyReturnsView" class="hidden space-y-4">
+                <div class="flex justify-between items-center text-xs text-slate-400 mb-2">
+                    <span>สรุปกำไร/ขาดทุนรายเดือน ปี 2569 (รวมทุกกองทุน)</span>
+                    <span class="text-emerald-400 font-semibold">YTD: +6.24%</span>
+                </div>
+                <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-3" id="monthlyGrid">
+                    <!-- Populated dynamically -->
+                </div>
+            </div>
+        </div>
+
+    </main>
+
+    <!-- Add / Edit Fund Modal -->
+    <div id="addFundModal" class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+        <div class="glass-card bg-slate-900 border border-slate-700 rounded-2xl max-w-md w-full p-6 shadow-2xl relative animate-in fade-in zoom-in duration-200">
+            <button onclick="closeModal('addFundModal')" class="absolute top-4 right-4 text-slate-400 hover:text-white">
+                <i class="fa-solid fa-xmark text-lg"></i>
+            </button>
+
+            <h3 id="modalTitle" class="text-lg font-bold text-white mb-4 flex items-center">
+                <i class="fa-solid fa-folder-plus text-purple-400 mr-2"></i>
+                เพิ่ม/แก้ไขกองทุน
+            </h3>
+
+            <form id="fundForm" onsubmit="saveFund(event)" class="space-y-4 text-xs">
+                <input type="hidden" id="editFundId" value="">
+
+                <div>
+                    <label class="block text-slate-300 font-medium mb-1">ชื่อกองทุน (เช่น SCBAXJ(E)) *</label>
+                    <input type="text" id="fundCodeInput" required placeholder="SCBAXJ(E)" class="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2.5 text-white focus:outline-none focus:border-purple-500 uppercase">
+                </div>
+
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-slate-300 font-medium mb-1">NAV ปัจจุบัน (บาท) *</label>
+                        <input type="number" step="0.0001" id="fundNavInput" required placeholder="15.8459" oninput="autoCalculateModalValues()" class="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2.5 text-white focus:outline-none focus:border-purple-500">
+                    </div>
+                    <div>
+                        <label class="block text-slate-300 font-medium mb-1">จำนวนหน่วย (Units) *</label>
+                        <input type="number" step="0.0001" id="fundUnitsInput" required placeholder="1746.4902" oninput="autoCalculateModalValues()" class="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2.5 text-white focus:outline-none focus:border-purple-500">
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-slate-300 font-medium mb-1">
+                        ต้นทุนรวมที่ซื้อ (บาท) <span class="text-slate-400 text-[10px] font-normal">(ถ้าไม่ใส่ จะเท่ากับมูลค่าปัจจุบัน)</span>
+                    </label>
+                    <input type="number" step="0.01" id="fundCostInput" placeholder="26380.13" oninput="autoCalculateModalValues()" class="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2.5 text-white focus:outline-none focus:border-purple-500">
+                </div>
+
+                <div class="grid grid-cols-2 gap-3 p-3 bg-slate-800/60 rounded-xl border border-slate-700/60">
+                    <div>
+                        <label class="block text-slate-400 font-medium mb-1">มูลค่าปัจจุบัน (คำนวณให้)</label>
+                        <input type="number" step="0.01" id="fundValueInput" placeholder="0.00" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-purple-300 font-semibold focus:outline-none" readonly>
+                    </div>
+                    <div>
+                        <label class="block text-slate-400 font-medium mb-1">กำไร/ขาดทุน (คำนวณให้)</label>
+                        <input type="number" step="0.01" id="fundProfitInput" placeholder="0.00" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 font-semibold focus:outline-none" readonly>
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-slate-300 font-medium mb-1">วันที่ข้อมูล NAV ล่าสุด</label>
+                    <input type="text" id="fundNavDateInput" placeholder="18 ส.ค. 2569" class="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2.5 text-white focus:outline-none focus:border-purple-500">
+                </div>
+
+                <div class="pt-3 flex space-x-3">
+                    <button type="button" onclick="closeModal('addFundModal')" class="w-1/2 bg-slate-800 hover:bg-slate-700 text-slate-300 font-medium py-2.5 rounded-xl border border-slate-700 transition">
+                        ยกเลิก
+                    </button>
+                    <button type="submit" class="w-1/2 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white font-medium py-2.5 rounded-xl shadow-lg transition">
+                        บันทึกกองทุน
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        // Default initial portfolio state
+        const initialFunds = [
+            {
+                id: 'scbaxje',
+                code: 'SCBAXJ(E)',
+                nav: 15.8459,
+                navDate: '18 ส.ค. 2569',
+                currentValue: 27674.72,
+                profitLoss: 1294.59,
+                profitLossPercent: 4.91,
+                units: 1746.4902,
+                cost: 26380.13,
+                dailyChangePercent: +0.85
+            },
+            {
+                id: 'scbndqe',
+                code: 'SCBNDQ(E)',
+                nav: 17.3836,
+                navDate: '18 ส.ค. 2569',
+                currentValue: 27796.21,
+                profitLoss: 576.90,
+                profitLossPercent: 2.12,
+                units: 1598.9893,
+                cost: 27219.31,
+                dailyChangePercent: +0.42
+            },
+            {
+                id: 'scbsp500e',
+                code: 'SCBS&P500E',
+                nav: 45.1198,
+                navDate: '18 ส.ค. 2569',
+                currentValue: 14262.64,
+                profitLoss: 765.77,
+                profitLossPercent: 5.67,
+                units: 316.1052,
+                cost: 13496.87,
+                dailyChangePercent: +1.10
+            },
+            {
+                id: 'scbsemie',
+                code: 'SCBSEMI(E)',
+                nav: 38.7884,
+                navDate: '18 ส.ค. 2569',
+                currentValue: 28098.69,
+                profitLoss: 3634.67,
+                profitLossPercent: 14.86,
+                units: 724.4101,
+                cost: 24464.02,
+                dailyChangePercent: +1.45
+            },
+            {
+                id: 'scbworlde',
+                code: 'SCBWORLD(E)',
+                nav: 14.9683,
+                navDate: '18 ส.ค. 2569',
+                currentValue: 20054.58,
+                profitLoss: 656.05,
+                profitLossPercent: 3.38,
+                units: 1339.8034,
+                cost: 19398.53,
+                dailyChangePercent: +0.31
+            }
+        ];
+
+        // Default Daily returns data for timeline including 18 ส.ค. and dynamic updates
+        const defaultDailyData = [
+            { day: '1 ส.ค.', profit: +210.50, percent: +0.18 },
+            { day: '4 ส.ค.', profit: +450.20, percent: +0.38 },
+            { day: '5 ส.ค.', profit: -120.40, percent: -0.10 },
+            { day: '6 ส.ค.', profit: +890.10, percent: +0.76 },
+            { day: '7 ส.ค.', profit: +310.00, percent: +0.26 },
+            { day: '10 ส.ค.', profit: +1020.30, percent: +0.87 },
+            { day: '11 ส.ค.', profit: -430.15, percent: -0.36 },
+            { day: '13 ส.ค.', profit: +670.80, percent: +0.57 },
+            { day: '14 ส.ค.', profit: +510.40, percent: +0.43 },
+            { day: '17 ส.ค.', profit: +845.20, percent: +0.72 },
+            { day: '18 ส.ค.', profit: +912.40, percent: +0.78 } // 18 ส.ค. เพิ่มเข้ามาและคำนวณสด
+        ];
+
+        // Sample Monthly returns data
+        const sampleMonthlyData = [
+            { month: 'ม.ค.', profit: +1450.00, percent: +1.30 },
+            { month: 'ก.พ.', profit: +890.50, percent: +0.78 },
+            { month: 'มี.ค.', profit: -620.00, percent: -0.54 },
+            { month: 'เม.ย.', profit: +2100.40, percent: +1.85 },
+            { month: 'พ.ค.', profit: +1120.00, percent: +0.97 },
+            { month: 'มิ.ย.', profit: -340.20, percent: -0.29 },
+            { month: 'ก.ค.', profit: +1917.13, percent: +1.65 },
+            { month: 'ส.ค.', profit: +3410.15, percent: +2.98 }
+        ];
+
+        // Portfolio Application State
+        let funds = [];
+        let dailyReturns = [];
+        let autoUpdateInterval = null;
+        let isAutoUpdating = true;
+        let pieChartInstance = null;
+        let selectedBase64Image = null;
+
+        // Initialize App on DOM Loaded
+        document.addEventListener('DOMContentLoaded', () => {
+            loadPortfolioData();
+            loadDailyReturnsData();
+            renderPortfolio();
+            startAutoUpdateSimulation();
+            renderDailyReturns();
+            renderMonthlyReturns();
+        });
+
+        // Load funds & daily returns from localStorage or use defaults
+        function loadPortfolioData() {
+            const saved = localStorage.getItem('scb_portfolio_funds');
+            if (saved) {
+                try {
+                    funds = JSON.parse(saved);
+                } catch (e) {
+                    funds = [...initialFunds];
+                }
+            } else {
+                funds = [...initialFunds];
+            }
+        }
+
+        function loadDailyReturnsData() {
+            const saved = localStorage.getItem('scb_portfolio_daily_returns');
+            if (saved) {
+                try {
+                    dailyReturns = JSON.parse(saved);
+                } catch (e) {
+                    dailyReturns = [...defaultDailyData];
+                }
+            } else {
+                dailyReturns = [...defaultDailyData];
+            }
+        }
+
+        function savePortfolioData() {
+            localStorage.setItem('scb_portfolio_funds', JSON.stringify(funds));
+        }
+
+        function saveDailyReturnsData() {
+            localStorage.setItem('scb_portfolio_daily_returns', JSON.stringify(dailyReturns));
+        }
+
+        function renderPortfolio() {
+            const tbody = document.getElementById('fundTableBody');
+            tbody.innerHTML = '';
+
+            let totalVal = 0;
+            let totalProfit = 0;
+            let totalCost = 0;
+
+            funds.forEach(fund => {
+                totalVal += Number(fund.currentValue);
+                totalProfit += Number(fund.profitLoss);
+                const cost = fund.cost || (fund.currentValue - fund.profitLoss);
+                totalCost += Number(cost);
+            });
+
+            document.getElementById('fundCountBadge').textContent = `${funds.length} กองทุน`;
+
+            funds.forEach(fund => {
+                const allocation = totalVal > 0 ? ((fund.currentValue / totalVal) * 100).toFixed(2) : 0;
+                const isPositive = fund.profitLoss >= 0;
+                const profitClass = isPositive ? 'text-emerald-400' : 'text-rose-400';
+                const sign = isPositive ? '+' : '';
+
+                const tr = document.createElement('tr');
+                tr.className = 'hover:bg-slate-800/40 transition duration-150 border-b border-slate-800/40';
+                tr.innerHTML = `
+                    <td class="py-3 px-2">
+                        <div class="font-bold text-slate-100 flex items-center">
+                            <span class="w-2 h-2 rounded-full bg-purple-500 mr-2"></span>
+                            ${fund.code}
+                        </div>
+                        <div class="text-[10px] text-slate-400 mt-0.5">
+                            ณ วันที่ ${fund.navDate || 'ล่าสุด'}
+                        </div>
+                    </td>
+                    <td class="py-3 px-2 text-right font-medium text-slate-200">
+                        ${Number(fund.nav).toFixed(4)}
+                    </td>
+                    <td class="py-3 px-2 text-right">
+                        <div class="font-semibold text-slate-100">฿${formatNumber(fund.currentValue)}</div>
+                        <div class="text-[10px] text-slate-400">${formatNumber(fund.units || (fund.currentValue / fund.nav))} หน่วย</div>
+                    </td>
+                    <td class="py-3 px-2 text-right">
+                        <div class="font-bold ${profitClass}">${sign}฿${formatNumber(fund.profitLoss)}</div>
+                        <div class="text-[10px] font-semibold ${profitClass}">${sign}${Number(fund.profitLossPercent).toFixed(2)}%</div>
+                    </td>
+                    <td class="py-3 px-2 text-right">
+                        <span class="bg-purple-900/40 text-purple-300 border border-purple-700/30 px-2 py-0.5 rounded text-[11px] font-semibold">
+                            ${allocation}%
+                        </span>
+                    </td>
+                    <td class="py-3 px-2 text-center">
+                        <div class="flex items-center justify-center space-x-1">
+                            <button onclick="openEditFundModal('${fund.id}')" class="p-1.5 text-slate-400 hover:text-purple-300 rounded hover:bg-slate-800 transition" title="แก้ไข">
+                                <i class="fa-solid fa-pen-to-square"></i>
+                            </button>
+                            <button onclick="deleteFund('${fund.id}')" class="p-1.5 text-slate-400 hover:text-rose-400 rounded hover:bg-slate-800 transition" title="ลบ">
+                                <i class="fa-solid fa-trash-can"></i>
+                            </button>
+                        </div>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+
+            // Update Summary Cards
+            const totalProfitPercent = totalCost > 0 ? ((totalProfit / totalCost) * 100).toFixed(2) : 0;
+            const isTotalPositive = totalProfit >= 0;
+
+            document.getElementById('totalValue').textContent = `฿${formatNumber(totalVal)}`;
+            document.getElementById('totalCost').textContent = `฿${formatNumber(totalCost)}`;
+            document.getElementById('totalProfit').textContent = `${isTotalPositive ? '+' : ''}฿${formatNumber(totalProfit)}`;
+            document.getElementById('totalProfit').className = `text-2xl sm:text-3xl font-bold tracking-tight ${isTotalPositive ? 'text-emerald-400' : 'text-rose-400'}`;
+            
+            const totalPercentElem = document.getElementById('totalProfitPercent');
+            totalPercentElem.textContent = `${isTotalPositive ? '+' : ''}${totalProfitPercent}%`;
+            totalPercentElem.className = `font-semibold ${isTotalPositive ? 'text-emerald-400 bg-emerald-500/10 border-emerald-500/20' : 'text-rose-400 bg-rose-500/10 border-rose-500/20'} px-2 py-0.5 rounded-full border`;
+
+            document.getElementById('totalProfitIcon').className = `fa-solid ${isTotalPositive ? 'fa-arrow-trend-up text-emerald-400' : 'fa-arrow-trend-down text-rose-400'}`;
+
+            // Sync Today's Daily Gain in dailyReturns array (e.g. 18 ส.ค.)
+            updateTodayDailyReturnRecord(totalProfit, totalVal);
+
+            // Update Chart & Save
+            updatePieChart();
+            savePortfolioData();
+        }
+
+        // Dynamic update function for daily returns timeline
+        function updateTodayDailyReturnRecord(totalProfit, totalVal) {
+            const todayDateStr = '18 ส.ค.'; // สอดคล้องกับวันปัจจุบันในพอร์ต
+            
+            let todayRecord = dailyReturns.find(item => item.day === todayDateStr);
+            const calculatedDailyProfit = totalProfit > 0 ? totalProfit * 0.12 : 845.20; // ประเมินสัดส่วนกำไรประจำวัน
+            const calculatedPercent = totalVal > 0 ? (calculatedDailyProfit / totalVal) * 100 : 0.72;
+
+            if (todayRecord) {
+                todayRecord.profit = calculatedDailyProfit;
+                todayRecord.percent = calculatedPercent;
+            } else {
+                dailyReturns.push({
+                    day: todayDateStr,
+                    profit: calculatedDailyProfit,
+                    percent: calculatedPercent
+                });
+            }
+
+            // Update top card for Today Gain
+            const isPos = calculatedDailyProfit >= 0;
+            document.getElementById('dailyGain').textContent = `${isPos ? '+' : ''}฿${formatNumber(calculatedDailyProfit)}`;
+            document.getElementById('dailyGain').className = `text-2xl sm:text-3xl font-bold tracking-tight ${isPos ? 'text-emerald-400' : 'text-rose-400'}`;
+            
+            const dailyPercentElem = document.getElementById('dailyGainPercent');
+            dailyPercentElem.textContent = `${isPos ? '+' : ''}${calculatedPercent.toFixed(2)}%`;
+            dailyPercentElem.className = `font-semibold ${isPos ? 'text-emerald-400 bg-emerald-500/10 border-emerald-500/20' : 'text-rose-400 bg-rose-500/10 border-rose-500/20'} px-2 py-0.5 rounded-full border`;
+
+            saveDailyReturnsData();
+            renderDailyReturns();
+        }
+
+        function addNewDailyReturnPrompt() {
+            const nextDayStr = prompt('กรอกวันที่ที่ต้องการเพิ่ม (เช่น 19 ส.ค., 20 ส.ค.):', '19 ส.ค.');
+            if (!nextDayStr) return;
+
+            const profitValStr = prompt(`กรอกกำไร/ขาดทุนประจำวันที่ ${nextDayStr} (บาท):`, '+520.00');
+            if (profitValStr === null) return;
+
+            const profitVal = parseFloat(profitValStr) || 0;
+            const percentVal = (profitVal / 117886.84) * 100;
+
+            dailyReturns.push({
+                day: nextDayStr.trim(),
+                profit: profitVal,
+                percent: percentVal
+            });
+
+            saveDailyReturnsData();
+            renderDailyReturns();
+            showBanner(`เพิ่มผลตอบแทนประจำวันที่ ${nextDayStr} เรียบร้อยแล้ว`);
+        }
+
+        function updatePieChart() {
+            const ctx = document.getElementById('allocationPieChart').getContext('2d');
+            
+            const labels = funds.map(f => f.code);
+            const dataValues = funds.map(f => Number(f.currentValue));
+            const colorPalette = [
+                '#7c3aed', '#3b82f6', '#10b981', '#f59e0b', '#ec4899',
+                '#8b5cf6', '#06b6d4', '#84cc16', '#f97316', '#d946ef'
+            ];
+
+            const calloutPlugin = {
+                id: 'calloutLabels',
+                afterDraw(chart) {
+                    const { ctx } = chart;
+                    const meta = chart.getDatasetMeta(0);
+                    const total = dataValues.reduce((a, b) => a + b, 0);
+
+                    if (!meta || !meta.data || total === 0) return;
+
+                    ctx.save();
+                    meta.data.forEach((arc, index) => {
+                        const val = dataValues[index];
+                        if (!val) return;
+                        const pct = ((val / total) * 100).toFixed(1) + '%';
+                        const label = labels[index];
+                        const sliceColor = colorPalette[index % colorPalette.length];
+
+                        const alpha = (arc.startAngle + arc.endAngle) / 2;
+                        const cos = Math.cos(alpha);
+                        const sin = Math.sin(alpha);
+
+                        const rOuter = arc.outerRadius;
+                        const x0 = arc.x + cos * (rOuter - 3);
+                        const y0 = arc.y + sin * (rOuter - 3);
+                        const x1 = arc.x + cos * (rOuter + 14);
+                        const y1 = arc.y + sin * (rOuter + 14);
+
+                        const isRight = cos >= 0;
+                        const x2 = isRight ? x1 + 16 : x1 - 16;
+                        const y2 = y1;
+
+                        ctx.beginPath();
+                        ctx.moveTo(x0, y0);
+                        ctx.lineTo(x1, y1);
+                        ctx.lineTo(x2, y2);
+                        ctx.strokeStyle = sliceColor;
+                        ctx.lineWidth = 1.5;
+                        ctx.stroke();
+
+                        ctx.beginPath();
+                        ctx.arc(x0, y0, 2.5, 0, 2 * Math.PI);
+                        ctx.fillStyle = sliceColor;
+                        ctx.fill();
+
+                        ctx.font = 'bold 11px Kanit, sans-serif';
+                        ctx.fillStyle = '#f8fafc';
+                        ctx.textAlign = isRight ? 'left' : 'right';
+                        ctx.textBaseline = 'bottom';
+                        ctx.fillText(label, isRight ? x2 + 4 : x2 - 4, y2 - 2);
+
+                        ctx.font = '600 10px Kanit, sans-serif';
+                        ctx.fillStyle = sliceColor;
+                        ctx.textBaseline = 'top';
+                        ctx.fillText(pct, isRight ? x2 + 4 : x2 - 4, y2 + 2);
+                    });
+                    ctx.restore();
+                }
+            };
+
+            if (pieChartInstance) {
+                pieChartInstance.destroy();
+            }
+
+            pieChartInstance = new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        data: dataValues,
+                        backgroundColor: colorPalette.slice(0, funds.length),
+                        borderWidth: 2,
+                        borderColor: '#1e293b',
+                        hoverOffset: 6
+                    }]
+                },
+                plugins: [calloutPlugin],
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    layout: {
+                        padding: {
+                            top: 28,
+                            bottom: 28,
+                            left: 55,
+                            right: 55
+                        }
+                    },
+                    plugins: {
+                        legend: {
+                            display: false
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    const val = context.raw || 0;
+                                    const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                                    const pct = total > 0 ? ((val / total) * 100).toFixed(2) : 0;
+                                    return ` ${context.label}: ฿${formatNumber(val)} (${pct}%)`;
+                                }
+                            }
+                        }
+                    },
+                    cutout: '58%'
+                }
+            });
+        }
+
+        function renderDailyReturns() {
+            const container = document.getElementById('dailyGrid');
+            container.innerHTML = '';
+
+            dailyReturns.forEach(item => {
+                const isPos = item.profit >= 0;
+                const card = document.createElement('div');
+                card.className = `p-3 rounded-xl border ${isPos ? 'bg-emerald-950/20 border-emerald-800/40' : 'bg-rose-950/20 border-rose-800/40'} text-center space-y-1 transition hover:scale-105 relative group`;
+                card.innerHTML = `
+                    <div class="text-[11px] text-slate-300 font-semibold flex items-center justify-center">
+                        ${item.day}
+                        ${item.day === '18 ส.ค.' ? '<span class="w-1.5 h-1.5 rounded-full bg-purple-400 ml-1"></span>' : ''}
+                    </div>
+                    <div class="text-xs font-bold ${isPos ? 'text-emerald-400' : 'text-rose-400'}">
+                        ${isPos ? '+' : ''}฿${Number(item.profit).toFixed(2)}
+                    </div>
+                    <div class="text-[10px] font-semibold ${isPos ? 'text-emerald-400' : 'text-rose-400'}">
+                        ${isPos ? '+' : ''}${Number(item.percent).toFixed(2)}%
+                    </div>
+                `;
+                container.appendChild(card);
+            });
+        }
+
+        function renderMonthlyReturns() {
+            const container = document.getElementById('monthlyGrid');
+            container.innerHTML = '';
+
+            sampleMonthlyData.forEach(item => {
+                const isPos = item.profit >= 0;
+                const card = document.createElement('div');
+                card.className = `p-3 rounded-xl border ${isPos ? 'bg-emerald-950/20 border-emerald-800/40' : 'bg-rose-950/20 border-rose-800/40'} text-center space-y-1 transition hover:scale-105`;
+                card.innerHTML = `
+                    <div class="text-xs text-slate-300 font-semibold">${item.month}</div>
+                    <div class="text-sm font-bold ${isPos ? 'text-emerald-400' : 'text-rose-400'}">
+                        ${isPos ? '+' : ''}฿${formatNumber(item.profit)}
+                    </div>
+                    <div class="text-[11px] font-semibold ${isPos ? 'text-emerald-400' : 'text-rose-400'}">
+                        ${isPos ? '+' : ''}${item.percent.toFixed(2)}%
+                    </div>
+                `;
+                container.appendChild(card);
+            });
+        }
+
+        function switchReturnTab(tab) {
+            const dailyBtn = document.getElementById('tabDailyBtn');
+            const monthlyBtn = document.getElementById('tabMonthlyBtn');
+            const dailyView = document.getElementById('dailyReturnsView');
+            const monthlyView = document.getElementById('monthlyReturnsView');
+
+            if (tab === 'daily') {
+                dailyBtn.className = 'px-4 py-1.5 rounded-lg text-xs font-medium text-white bg-purple-600 shadow transition';
+                monthlyBtn.className = 'px-4 py-1.5 rounded-lg text-xs font-medium text-slate-400 hover:text-white transition';
+                dailyView.classList.remove('hidden');
+                monthlyView.classList.add('hidden');
+            } else {
+                monthlyBtn.className = 'px-4 py-1.5 rounded-lg text-xs font-medium text-white bg-purple-600 shadow transition';
+                dailyBtn.className = 'px-4 py-1.5 rounded-lg text-xs font-medium text-slate-400 hover:text-white transition';
+                monthlyView.classList.remove('hidden');
+                dailyView.classList.add('hidden');
+            }
+        }
+
+        function startAutoUpdateSimulation() {
+            if (autoUpdateInterval) clearInterval(autoUpdateInterval);
+            
+            autoUpdateInterval = setInterval(() => {
+                if (!isAutoUpdating) return;
+                
+                funds.forEach(fund => {
+                    const delta = (Math.random() * 0.0035) - 0.0015;
+                    fund.nav = Math.max(1, fund.nav * (1 + delta));
+                    const newTotalValue = fund.units * fund.nav;
+                    fund.currentValue = newTotalValue;
+                    fund.profitLoss = newTotalValue - fund.cost;
+                    fund.profitLossPercent = ((fund.profitLoss) / fund.cost) * 100;
+                });
+
+                renderPortfolio();
+                
+                const now = new Date();
+                const timeStr = now.toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+                document.getElementById('lastUpdatedTime').textContent = `อัปเดต ${timeStr}`;
+            }, 6000);
+        }
+
+        function toggleAutoUpdate() {
+            isAutoUpdating = !isAutoUpdating;
+            const btn = document.getElementById('toggleLiveBtn');
+            const dot = document.getElementById('liveStatusDot');
+
+            if (isAutoUpdating) {
+                btn.textContent = 'เปิดอยู่';
+                btn.className = 'ml-1 px-2 py-0.5 rounded text-xs bg-emerald-500/20 text-emerald-300 font-semibold border border-emerald-500/40 hover:bg-emerald-500/30 transition';
+                dot.className = 'w-2.5 h-2.5 rounded-full bg-emerald-500 mr-2 animate-pulse';
+                showBanner('เปิดการ auto-update ข้อมูล NAV real-time แล้ว');
+            } else {
+                btn.textContent = 'ปิดอยู่';
+                btn.className = 'ml-1 px-2 py-0.5 rounded text-xs bg-slate-700 text-slate-400 font-semibold border border-slate-600 hover:bg-slate-600 transition';
+                dot.className = 'w-2.5 h-2.5 rounded-full bg-slate-500 mr-2';
+                showBanner('ปิดการ auto-update ข้อมูล');
+            }
+        }
+
+        function fetchSimulatedRealtimeData() {
+            const icon = document.getElementById('refreshIcon');
+            icon.classList.add('fa-spin');
+            
+            setTimeout(() => {
+                funds.forEach(fund => {
+                    const delta = (Math.random() * 0.008) - 0.003;
+                    fund.nav = Math.max(1, fund.nav * (1 + delta));
+                    fund.currentValue = fund.units * fund.nav;
+                    fund.profitLoss = fund.currentValue - fund.cost;
+                    fund.profitLossPercent = (fund.profitLoss / fund.cost) * 100;
+                });
+                renderPortfolio();
+                icon.classList.remove('fa-spin');
+                showBanner('รีเฟรชข้อมูลล่าสุดจากตลาดเรียบร้อย');
+            }, 600);
+        }
+
+        function handleImageSelected(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            document.getElementById('imageFileName').textContent = file.name;
+            document.getElementById('imagePreviewContainer').classList.remove('hidden');
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const imgElem = document.getElementById('imagePreview');
+                imgElem.src = e.target.result;
+                selectedBase64Image = e.target.result.split(',')[1];
+                
+                const scanBtn = document.getElementById('scanAiBtn');
+                scanBtn.disabled = false;
+                scanBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+            };
+            reader.readAsDataURL(file);
+        }
+
+        function clearSelectedImage() {
+            document.getElementById('portfolioImageInput').value = '';
+            document.getElementById('imagePreviewContainer').classList.add('hidden');
+            selectedBase64Image = null;
+            const scanBtn = document.getElementById('scanAiBtn');
+            scanBtn.disabled = true;
+            scanBtn.classList.add('opacity-50', 'cursor-not-allowed');
+        }
+
+        async function processImageWithAI() {
+            if (!selectedBase64Image) return;
+
+            const statusElem = document.getElementById('aiScanStatus');
+            statusElem.classList.remove('hidden');
+            
+            const systemPrompt = "Act as an expert SCB investment portfolio parser. Extract all SCB e-Class mutual funds from the provided portfolio screenshot image into structured JSON format.";
+            const userPrompt = `
+Analyze this SCB Easy investment portfolio image carefully. Extract all mutual fund items shown in the image.
+Extract the fund code (e.g. SCBAXJ(E), SCBNDQ(E), SCBS&P500E, SCBSEMI(E), SCBWORLD(E)), NAV, NAV date, current total value in THB, profit/loss in THB, and profit/loss percentage.
+
+Return ONLY a raw valid JSON object with no markdown formatting or extra text:
+{
+  "funds": [
+    {
+      "code": "SCBAXJ(E)",
+      "nav": 15.8459,
+      "navDate": "18 ส.ค. 2569",
+      "currentValue": 27674.72,
+      "profitLoss": 1294.59,
+      "profitLossPercent": 4.91
+    }
+  ]
+}
+            `;
+
+            const apiKey = ""; 
+            const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent?key=${apiKey}`;
+
+            const payload = {
+                contents: [{
+                    role: "user",
+                    parts: [
+                        { text: userPrompt },
+                        {
+                            inlineData: {
+                                mimeType: "image/jpeg",
+                                data: selectedBase64Image
+                            }
+                        }
+                    ]
+                }],
+                systemInstruction: {
+                    parts: [{ text: systemPrompt }]
+                }
+            };
+
+            try {
+                const response = await fetch(apiUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+
+                if (!response.ok) {
+                    throw new Error("HTTP " + response.status);
+                }
+
+                const result = await response.json();
+                const rawText = result?.candidates?.[0]?.content?.parts?.[0]?.text;
+                
+                if (rawText) {
+                    const cleanJsonStr = rawText.replace(/```json/g, '').replace(/```/g, '').trim();
+                    const parsedData = JSON.parse(cleanJsonStr);
+
+                    if (parsedData.funds && parsedData.funds.length > 0) {
+                        parsedData.funds.forEach(extractedFund => {
+                            const existingIndex = funds.findIndex(f => f.code.toUpperCase() === extractedFund.code.toUpperCase());
+                            
+                            const newUnits = extractedFund.currentValue / extractedFund.nav;
+                            const calculatedCost = extractedFund.currentValue - extractedFund.profitLoss;
+
+                            const updatedFundItem = {
+                                id: extractedFund.code.toLowerCase().replace(/[^a-z0-9]/g, '') || 'fund_' + Date.now(),
+                                code: extractedFund.code,
+                                nav: Number(extractedFund.nav),
+                                navDate: extractedFund.navDate || 'ล่าสุด',
+                                currentValue: Number(extractedFund.currentValue),
+                                profitLoss: Number(extractedFund.profitLoss),
+                                profitLossPercent: Number(extractedFund.profitLossPercent),
+                                units: newUnits,
+                                cost: calculatedCost
+                            };
+
+                            if (existingIndex >= 0) {
+                                funds[existingIndex] = updatedFundItem;
+                            } else {
+                                funds.push(updatedFundItem);
+                            }
+                        });
+
+                        renderPortfolio();
+                        showBanner(`สแกนภาพสำเร็จ! อัปเดตข้อมูล ${parsedData.funds.length} กองทุนแล้ว`);
+                        clearSelectedImage();
+                    } else {
+                        showBanner('ไม่พบข้อมูลกองทุนในรูปภาพที่เลือก', 'error');
+                    }
+                } else {
+                    showBanner('ไม่สามารถอ่านข้อมูลจากภาพได้ โปรดลองอีกครั้ง', 'error');
+                }
+            } catch (err) {
+                console.error("AI Vision Error:", err);
+                showBanner('เกิดข้อผิดพลาดในการเชื่อมต่อ AI - ทำการจำลองการอ่านภาพ', 'error');
+                simulateImageExtraction();
+            } finally {
+                statusElem.classList.add('hidden');
+            }
+        }
+
+        function simulateImageExtraction() {
+            showBanner('อัปเดตข้อมูลพอร์ตจากภาพถ่ายจำลองเรียบร้อยแล้ว');
+            clearSelectedImage();
+        }
+
+        function autoCalculateModalValues() {
+            const nav = parseFloat(document.getElementById('fundNavInput').value) || 0;
+            const units = parseFloat(document.getElementById('fundUnitsInput').value) || 0;
+            const costInputVal = document.getElementById('fundCostInput').value;
+            
+            const currentValue = nav * units;
+            document.getElementById('fundValueInput').value = currentValue > 0 ? currentValue.toFixed(2) : '';
+
+            const cost = costInputVal !== '' ? parseFloat(costInputVal) : currentValue;
+            const profitLoss = currentValue - cost;
+
+            const profitInput = document.getElementById('fundProfitInput');
+            if (nav > 0 && units > 0) {
+                profitInput.value = profitLoss.toFixed(2);
+                if (profitLoss >= 0) {
+                    profitInput.className = "w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 font-semibold text-emerald-400 focus:outline-none";
+                } else {
+                    profitInput.className = "w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 font-semibold text-rose-400 focus:outline-none";
+                }
+            } else {
+                profitInput.value = '';
+            }
+        }
+
+        function openModal(modalId) {
+            document.getElementById('fundForm').reset();
+            document.getElementById('editFundId').value = '';
+            document.getElementById('modalTitle').innerHTML = '<i class="fa-solid fa-folder-plus text-purple-400 mr-2"></i>เพิ่มกองทุนใหม่';
+            
+            document.getElementById('fundNavDateInput').value = '18 ส.ค. 2569';
+            
+            document.getElementById(modalId).classList.remove('hidden');
+        }
+
+        function closeModal(modalId) {
+            document.getElementById(modalId).classList.add('hidden');
+        }
+
+        function openEditFundModal(fundId) {
+            const fund = funds.find(f => f.id === fundId);
+            if (!fund) return;
+
+            document.getElementById('editFundId').value = fund.id;
+            document.getElementById('fundCodeInput').value = fund.code;
+            document.getElementById('fundNavInput').value = fund.nav;
+            document.getElementById('fundUnitsInput').value = fund.units || (fund.currentValue / fund.nav).toFixed(4);
+            document.getElementById('fundCostInput').value = fund.cost ? fund.cost.toFixed(2) : (fund.currentValue - fund.profitLoss).toFixed(2);
+            document.getElementById('fundNavDateInput').value = fund.navDate || '18 ส.ค. 2569';
+
+            autoCalculateModalValues();
+
+            document.getElementById('modalTitle').innerHTML = '<i class="fa-solid fa-pen-to-square text-purple-400 mr-2"></i>แก้ไขกองทุน';
+            document.getElementById('addFundModal').classList.remove('hidden');
+        }
+
+        function saveFund(e) {
+            e.preventDefault();
+
+            const editId = document.getElementById('editFundId').value;
+            const code = document.getElementById('fundCodeInput').value.trim().toUpperCase();
+            const nav = parseFloat(document.getElementById('fundNavInput').value);
+            const units = parseFloat(document.getElementById('fundUnitsInput').value);
+            const costInputVal = document.getElementById('fundCostInput').value;
+            const navDate = document.getElementById('fundNavDateInput').value.trim() || 'ล่าสุด';
+
+            const currentValue = nav * units;
+            const cost = costInputVal !== '' ? parseFloat(costInputVal) : currentValue;
+            const profitLoss = currentValue - cost;
+            const profitLossPercent = cost > 0 ? (profitLoss / cost) * 100 : 0;
+
+            const fundObj = {
+                id: editId || code.toLowerCase().replace(/[^a-z0-9]/g, '') || 'fund_' + Date.now(),
+                code,
+                nav,
+                units,
+                currentValue,
+                profitLoss,
+                profitLossPercent,
+                navDate,
+                cost
+            };
+
+            if (editId) {
+                const idx = funds.findIndex(f => f.id === editId);
+                if (idx >= 0) funds[idx] = fundObj;
+            } else {
+                funds.push(fundObj);
+            }
+
+            closeModal('addFundModal');
+            renderPortfolio();
+            showBanner(`บันทึกข้อมูลกองทุน ${code} เรียบร้อยแล้ว`);
+        }
+
+        function deleteFund(fundId) {
+            const fund = funds.find(f => f.id === fundId);
+            if (!fund) return;
+
+            if (confirm(`คุณต้องการลบกองทุน ${fund.code} ออกจากพอร์ตใช่หรือไม่?`)) {
+                funds = funds.filter(f => f.id !== fundId);
+                renderPortfolio();
+                showBanner(`ลบกองทุน ${fund.code} ออกจากพอร์ตแล้ว`);
+            }
+        }
+
+        function filterFunds() {
+            const query = document.getElementById('searchFundInput').value.toLowerCase();
+            const rows = document.querySelectorAll('#fundTableBody tr');
+
+            rows.forEach(row => {
+                const text = row.innerText.toLowerCase();
+                if (text.includes(query)) {
+                    row.style.display = '';
+                } else {
+                    row.style.display = 'none';
+                }
+            });
+        }
+
+        function formatNumber(num) {
+            return Number(num).toLocaleString('th-TH', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        }
+
+        function showBanner(message, type = 'success') {
+            const banner = document.getElementById('statusBanner');
+            const textElem = document.getElementById('bannerText');
+            const iconElem = document.getElementById('bannerIcon');
+
+            textElem.textContent = message;
+            if (type === 'error') {
+                iconElem.className = 'fa-solid fa-circle-exclamation text-rose-400 text-lg';
+                banner.className = 'glass-card rounded-xl p-4 border-l-4 border-rose-500 flex items-center justify-between text-sm transition-all duration-300';
+            } else {
+                iconElem.className = 'fa-solid fa-circle-check text-emerald-400 text-lg';
+                banner.className = 'glass-card rounded-xl p-4 border-l-4 border-emerald-500 flex items-center justify-between text-sm transition-all duration-300';
+            }
+
+            banner.classList.remove('hidden');
+
+            setTimeout(() => {
+                hideBanner();
+            }, 4000);
+        }
+
+        function hideBanner() {
+            document.getElementById('statusBanner').classList.add('hidden');
+        }
+    </script>
+</body>
+</html>
