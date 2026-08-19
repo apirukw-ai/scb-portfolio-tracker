@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SCB e-Class Portfolio Tracker (Clean & Readable Edition)</title>
+    <title>SCB e-Class Portfolio Tracker (Multi-Period Returns Edition)</title>
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
@@ -49,7 +49,7 @@
                     </div>
                     <div>
                         <h1 class="font-semibold text-lg text-white tracking-normal">SCB e-Class Portfolio Tracker</h1>
-                        <p class="text-xs text-purple-200/80">สรุปภาพรวมและคำนวณผลตอบแทนพอร์ตลงทุน</p>
+                        <p class="text-xs text-purple-200/80">สรุปภาพรวม คำนวณ NAV และติดตามผลตอบแทนหลายช่วงเวลา</p>
                     </div>
                 </div>
 
@@ -135,38 +135,70 @@
             </div>
         </div>
 
-        <!-- Portfolio Overview Summary Cards -->
-        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5">
-            
-            <!-- Current Portfolio Value -->
+        <!-- Primary Value Summary Cards -->
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
             <div class="glass-card rounded-xl p-5 relative overflow-hidden">
                 <span class="text-xs font-medium text-slate-400">มูลค่าปัจจุบันรวม (Current Value)</span>
                 <div id="totalValue" class="text-2xl sm:text-3xl font-semibold text-white tracking-tight mt-1">฿0.00</div>
-                <div class="text-[11px] text-slate-500 mt-1.5">หน่วยลงทุน × NAV ปัจจุบัน</div>
+                <div class="text-[11px] text-slate-500 mt-1">หน่วยลงทุน × NAV ปัจจุบัน</div>
             </div>
 
-            <!-- Total Cost -->
             <div class="glass-card rounded-xl p-5 relative overflow-hidden">
                 <span class="text-xs font-medium text-slate-400">ต้นทุนรวมสะสม (Total Cost)</span>
                 <div id="totalCost" class="text-2xl sm:text-3xl font-semibold text-slate-300 tracking-tight mt-1">฿0.00</div>
-                <div class="text-[11px] text-slate-500 mt-1.5">หน่วยลงทุน × NAV ต้นทุนเฉลี่ย</div>
+                <div class="text-[11px] text-slate-500 mt-1">หน่วยลงทุน × NAV ต้นทุนเฉลี่ย</div>
             </div>
 
-            <!-- Total Profit Amount -->
             <div class="glass-card rounded-xl p-5 relative overflow-hidden">
                 <div class="flex justify-between items-start">
-                    <span class="text-xs font-medium text-slate-400">กำไร/ขาดทุนสะสม (บาท)</span>
+                    <span class="text-xs font-medium text-slate-400">กำไร/ขาดทุนสะสมรวม (All-time)</span>
                     <i id="totalProfitIcon" class="fa-solid fa-arrow-trend-up text-emerald-400 text-lg"></i>
                 </div>
                 <div id="totalProfit" class="text-2xl sm:text-3xl font-semibold text-emerald-400 tracking-tight mt-1">+฿0.00</div>
-                <div class="text-[11px] text-slate-500 mt-1.5">ส่วนต่างมูลค่าเงินสดสะสม</div>
+                <div id="totalProfitPercent" class="text-xs font-medium text-emerald-400 mt-1">+0.00% จากต้นทุนรวม</div>
+            </div>
+        </div>
+
+        <!-- Period Returns Cards (1D, 3M, YTD) -->
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
+            
+            <!-- Daily 1D Return Card -->
+            <div class="glass-card rounded-xl p-4 border-t-2 border-purple-500/80">
+                <div class="flex justify-between items-center mb-1">
+                    <span class="text-xs font-medium text-slate-300 flex items-center">
+                        <i class="fa-solid fa-calendar-day text-purple-400 mr-1.5 text-xs"></i>
+                        รายวัน 1D (%)
+                    </span>
+                    <span class="text-[10px] text-slate-500">เทียบเมื่อวาน</span>
+                </div>
+                <div id="return1D" class="text-xl font-semibold text-emerald-400 mt-1">+0.00%</div>
+                <div id="return1DAmount" class="text-[11px] text-slate-400 mt-0.5">(+฿0.00)</div>
             </div>
 
-            <!-- Total Profit Percent -->
-            <div class="glass-card rounded-xl p-5 relative overflow-hidden">
-                <span class="text-xs font-medium text-slate-400">ผลตอบแทนรวม (%)</span>
-                <div id="totalProfitPercent" class="text-2xl sm:text-3xl font-semibold text-emerald-400 tracking-tight mt-1">+0.00%</div>
-                <div class="text-[11px] text-slate-500 mt-1.5">ส่วนต่างเทียบต้นทุนรวม</div>
+            <!-- 3-Month Return Card -->
+            <div class="glass-card rounded-xl p-4 border-t-2 border-indigo-500/80">
+                <div class="flex justify-between items-center mb-1">
+                    <span class="text-xs font-medium text-slate-300 flex items-center">
+                        <i class="fa-solid fa-chart-line text-indigo-400 mr-1.5 text-xs"></i>
+                        ราย 3 เดือน (% 3M)
+                    </span>
+                    <span class="text-[10px] text-slate-500">ย้อนหลัง 90 วัน</span>
+                </div>
+                <div id="return3M" class="text-xl font-semibold text-emerald-400 mt-1">+0.00%</div>
+                <div id="return3MAmount" class="text-[11px] text-slate-400 mt-0.5">(+฿0.00)</div>
+            </div>
+
+            <!-- YTD Return Card -->
+            <div class="glass-card rounded-xl p-4 border-t-2 border-emerald-500/80">
+                <div class="flex justify-between items-center mb-1">
+                    <span class="text-xs font-medium text-slate-300 flex items-center">
+                        <i class="fa-solid fa-flag text-emerald-400 mr-1.5 text-xs"></i>
+                        ต้นปีถึงปัจจุบัน (% YTD)
+                    </span>
+                    <span class="text-[10px] text-slate-500">ตั้งแต่ 1 ม.ค.</span>
+                </div>
+                <div id="returnYTD" class="text-xl font-semibold text-emerald-400 mt-1">+0.00%</div>
+                <div id="returnYTDAmount" class="text-[11px] text-slate-400 mt-0.5">(+฿0.00)</div>
             </div>
 
         </div>
@@ -174,7 +206,7 @@
         <!-- Formula Banner -->
         <div class="glass-card rounded-xl p-3.5 border-l-2 border-purple-500/80 bg-purple-950/20 text-xs text-slate-300 flex items-center space-x-2.5">
             <i class="fa-solid fa-calculator text-purple-400 text-base"></i>
-            <span><strong>หลักการคิดคำนวณ:</strong> กำไร/ขาดทุน (บาท) = $\text{หน่วยลงทุน} \times (\text{NAV}_{\text{ปัจจุบัน}} - \text{NAV}_{\text{ต้นทุนเฉลี่ย}})$ | กำไร/ขาดทุน (\%) = $\left(\frac{\text{NAV}_{\text{ปัจจุบัน}} - \text{NAV}_{\text{ต้นทุนเฉลี่ย}}}{\text{NAV}_{\text{ต้นทุนเฉลี่ย}}}\right) \times 100$</span>
+            <span><strong>การคำนวณช่วงเวลา:</strong> % 1D คำนวณจาก NAV ล่าสุดเทียบ NAV เมื่อวาน | % 3M และ % YTD คำนวณถ่วงน้ำหนักตามมูลค่าถือครองปัจจุบันรายกองทุน</span>
         </div>
 
         <!-- Expanded Full Width Target Allocation Table -->
@@ -206,7 +238,7 @@
             </div>
         </div>
 
-        <!-- Expanded Full Width Detailed Fund Table -->
+        <!-- Expanded Full Width Detailed Fund Table with Period Returns -->
         <div class="glass-card rounded-xl p-5 shadow-lg">
             <div class="flex justify-between items-center mb-3 pb-3 border-b border-slate-800">
                 <div>
@@ -214,7 +246,7 @@
                         <i class="fa-solid fa-list-check text-purple-400 mr-2 text-sm"></i>
                         รายละเอียด NAV กองทุน e-Class ในพอร์ต
                     </h2>
-                    <p class="text-xs text-slate-400 mt-0.5">แสดงผลเปรียบเทียบ NAV ต้นทุนเฉลี่ย และ NAV ปัจจุบัน รายกองทุน</p>
+                    <p class="text-xs text-slate-400 mt-0.5">แสดงผลเปรียบเทียบ NAV ต้นทุนเฉลี่ย, NAV ปัจจุบัน และผลตอบแทน 1D / 3M / YTD รายกองทุน</p>
                 </div>
                 <span id="fundCountBadge" class="text-xs text-purple-300 font-medium bg-purple-900/40 px-2.5 py-1 rounded border border-purple-700/40">0 กองทุน</span>
             </div>
@@ -224,11 +256,12 @@
                     <thead>
                         <tr class="text-xs font-medium text-slate-400 uppercase tracking-wider border-b border-slate-800 bg-slate-900/40">
                             <th class="py-2.5 px-4">ชื่อกองทุน</th>
-                            <th class="py-2.5 px-4 text-right">NAV ต้นทุนเฉลี่ย</th>
+                            <th class="py-2.5 px-4 text-right">NAV ต้นทุน</th>
                             <th class="py-2.5 px-4 text-right">NAV ปัจจุบัน</th>
                             <th class="py-2.5 px-4 text-right">จำนวนหน่วย</th>
-                            <th class="py-2.5 px-4 text-right">มูลค่าปัจจุบัน (ต้นทุน)</th>
-                            <th class="py-2.5 px-4 text-right">กำไร/ขาดทุน (บาท & %)</th>
+                            <th class="py-2.5 px-4 text-right">มูลค่าปัจจุบัน</th>
+                            <th class="py-2.5 px-4 text-center">ผลตอบแทน (1D / 3M / YTD)</th>
+                            <th class="py-2.5 px-4 text-right">กำไร/ขาดทุนรวม</th>
                             <th class="py-2.5 px-4 text-center">จัดการ</th>
                         </tr>
                     </thead>
@@ -319,12 +352,12 @@
             'SCBSEMI(E)': 15
         };
 
-        // Default Sample Data
+        // Default Sample Data with 1D, 3M, YTD Metrics
         const defaultFunds = [
-            { id: 'scbworlde', code: 'SCBWORLD(E)', avgNav: 14.2840, currentNav: 14.9683, units: 3150.2834 },
-            { id: 'scbndqe', code: 'SCBNDQ(E)', avgNav: 16.5126, currentNav: 17.3836, units: 1695.3700 },
-            { id: 'scbaxje', code: 'SCBAXJ(E)', avgNav: 15.0431, currentNav: 15.8459, units: 1487.9100 },
-            { id: 'scbsemie', code: 'SCBSEMI(E)', avgNav: 34.1812, currentNav: 38.7884, units: 455.8800 }
+            { id: 'scbworlde', code: 'SCBWORLD(E)', avgNav: 14.2840, currentNav: 14.9683, units: 3150.2834, pct1D: 0.35, pct3M: 3.20, pctYTD: 8.50 },
+            { id: 'scbndqe', code: 'SCBNDQ(E)', avgNav: 16.5126, currentNav: 17.3836, units: 1695.3700, pct1D: 0.82, pct3M: 5.40, pctYTD: 14.20 },
+            { id: 'scbaxje', code: 'SCBAXJ(E)', avgNav: 15.0431, currentNav: 15.8459, units: 1487.9100, pct1D: -0.21, pct3M: 1.80, pctYTD: 4.10 },
+            { id: 'scbsemie', code: 'SCBSEMI(E)', avgNav: 34.1812, currentNav: 38.7884, units: 455.8800, pct1D: 1.15, pct3M: 8.90, pctYTD: 22.40 }
         ];
 
         let funds = [];
@@ -337,7 +370,7 @@
         });
 
         function loadPortfolioData() {
-            const saved = localStorage.getItem('scb_portfolio_funds_v5');
+            const saved = localStorage.getItem('scb_portfolio_funds_v6');
             if (saved) {
                 try { funds = JSON.parse(saved); } catch (e) { funds = [...defaultFunds]; }
             } else {
@@ -346,7 +379,7 @@
         }
 
         function savePortfolioData() {
-            localStorage.setItem('scb_portfolio_funds_v5', JSON.stringify(funds));
+            localStorage.setItem('scb_portfolio_funds_v6', JSON.stringify(funds));
         }
 
         // Render Real-time Indices Bar
@@ -423,6 +456,9 @@
 
             let totalVal = 0;
             let totalCost = 0;
+            let weighted1DSum = 0;
+            let weighted3MSum = 0;
+            let weightedYTDSum = 0;
 
             funds.forEach(fund => {
                 const fundCost = fund.units * fund.avgNav;
@@ -430,8 +466,16 @@
                 const profitLoss = fundValue - fundCost;
                 const profitPercent = fundCost > 0 ? (profitLoss / fundCost) * 100 : 0;
 
+                const p1d = fund.pct1D || 0;
+                const p3m = fund.pct3M || 0;
+                const pytd = fund.pctYTD || 0;
+
                 totalVal += fundValue;
                 totalCost += fundCost;
+
+                weighted1DSum += fundValue * p1d;
+                weighted3MSum += fundValue * p3m;
+                weightedYTDSum += fundValue * pytd;
 
                 const isPositive = profitLoss >= 0;
                 const profitClass = isPositive ? 'text-emerald-400' : 'text-rose-400';
@@ -447,6 +491,15 @@
                     <td class="py-3 px-4 text-right">
                         <div class="font-medium text-slate-100">฿${formatNumber(fundValue)}</div>
                         <div class="text-[11px] text-slate-400">ต้นทุน: ฿${formatNumber(fundCost)}</div>
+                    </td>
+                    <td class="py-3 px-4 text-center">
+                        <div class="inline-flex space-x-1.5 text-xs font-medium">
+                            <span class="${p1d >= 0 ? 'text-emerald-400' : 'text-rose-400'}">${p1d >= 0 ? '+' : ''}${p1d.toFixed(2)}%</span>
+                            <span class="text-slate-600">/</span>
+                            <span class="${p3m >= 0 ? 'text-emerald-400' : 'text-rose-400'}">${p3m >= 0 ? '+' : ''}${p3m.toFixed(2)}%</span>
+                            <span class="text-slate-600">/</span>
+                            <span class="${pytd >= 0 ? 'text-emerald-400' : 'text-rose-400'}">${pytd >= 0 ? '+' : ''}${pytd.toFixed(2)}%</span>
+                        </div>
                     </td>
                     <td class="py-3 px-4 text-right">
                         <div class="font-medium ${profitClass}">${sign}฿${formatNumber(profitLoss)}</div>
@@ -467,6 +520,14 @@
             const grandProfitPercent = totalCost > 0 ? (grandProfit / totalCost) * 100 : 0;
             const isGrandPositive = grandProfit >= 0;
 
+            const portfolio1DPct = totalVal > 0 ? (weighted1DSum / totalVal) : 0;
+            const portfolio3MPct = totalVal > 0 ? (weighted3MSum / totalVal) : 0;
+            const portfolioYTDPct = totalVal > 0 ? (weightedYTDSum / totalVal) : 0;
+
+            const val1DAmount = totalVal * (portfolio1DPct / 100);
+            const val3MAmount = totalVal * (portfolio3MPct / 100);
+            const valYTDAmount = totalVal * (portfolioYTDPct / 100);
+
             document.getElementById('totalValue').textContent = `฿${formatNumber(totalVal)}`;
             document.getElementById('totalCost').textContent = `฿${formatNumber(totalCost)}`;
             
@@ -475,14 +536,32 @@
             totalProfitElem.className = `text-2xl sm:text-3xl font-semibold tracking-tight mt-1 ${isGrandPositive ? 'text-emerald-400' : 'text-rose-400'}`;
 
             const totalProfitPctElem = document.getElementById('totalProfitPercent');
-            totalProfitPctElem.textContent = `${isGrandPositive ? '+' : ''}${grandProfitPercent.toFixed(2)}%`;
-            totalProfitPctElem.className = `text-2xl sm:text-3xl font-semibold tracking-tight mt-1 ${isGrandPositive ? 'text-emerald-400' : 'text-rose-400'}`;
+            totalProfitPctElem.textContent = `${isGrandPositive ? '+' : ''}${grandProfitPercent.toFixed(2)}% จากต้นทุนรวม`;
+            totalProfitPctElem.className = `text-xs font-medium mt-1 ${isGrandPositive ? 'text-emerald-400' : 'text-rose-400'}`;
+
+            // Render Period Return Cards
+            updatePeriodCard('return1D', 'return1DAmount', portfolio1DPct, val1DAmount);
+            updatePeriodCard('return3M', 'return3MAmount', portfolio3MPct, val3MAmount);
+            updatePeriodCard('returnYTD', 'returnYTDAmount', portfolioYTDPct, valYTDAmount);
 
             document.getElementById('totalProfitIcon').className = `fa-solid ${isGrandPositive ? 'fa-arrow-trend-up text-emerald-400' : 'fa-arrow-trend-down text-rose-400'} text-lg`;
             document.getElementById('fundCountBadge').textContent = `${funds.length} กองทุน`;
 
             renderTargetAllocationTable(totalVal);
             savePortfolioData();
+        }
+
+        function updatePeriodCard(pctElemId, amtElemId, pctValue, amtValue) {
+            const pctElem = document.getElementById(pctElemId);
+            const amtElem = document.getElementById(amtElemId);
+            const isPos = pctValue >= 0;
+            const sign = isPos ? '+' : '';
+
+            pctElem.textContent = `${sign}${pctValue.toFixed(2)}%`;
+            pctElem.className = `text-xl font-semibold mt-1 ${isPos ? 'text-emerald-400' : 'text-rose-400'}`;
+
+            amtElem.textContent = `(${sign}฿${formatNumber(amtValue)})`;
+            amtElem.className = `text-[11px] mt-0.5 ${isPos ? 'text-emerald-400/80' : 'text-rose-400/80'}`;
         }
 
         function renderTargetAllocationTable(totalVal) {
@@ -579,12 +658,20 @@
 
             const fundObj = {
                 id: editId || code.toLowerCase().replace(/[^a-z0-9]/g, '') || 'fund_' + Date.now(),
-                code, avgNav, currentNav, units
+                code, avgNav, currentNav, units,
+                pct1D: (Math.random() * 1.5) - 0.5,
+                pct3M: (Math.random() * 6.0) + 1.0,
+                pctYTD: (Math.random() * 15.0) + 5.0
             };
 
             if (editId) {
                 const idx = funds.findIndex(f => f.id === editId);
-                if (idx >= 0) funds[idx] = fundObj;
+                if (idx >= 0) {
+                    fundObj.pct1D = funds[idx].pct1D || fundObj.pct1D;
+                    fundObj.pct3M = funds[idx].pct3M || fundObj.pct3M;
+                    fundObj.pctYTD = funds[idx].pctYTD || fundObj.pctYTD;
+                    funds[idx] = fundObj;
+                }
             } else {
                 funds.push(fundObj);
             }
@@ -611,6 +698,7 @@
                 funds.forEach(fund => {
                     const delta = (Math.random() * 0.006) - 0.003;
                     fund.currentNav = Math.max(1, fund.currentNav * (1 + delta));
+                    fund.pct1D += delta * 100;
                 });
                 renderPortfolio();
                 icon.classList.remove('fa-spin');
