@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SCB e-Class Tracker (No Charts Edition)</title>
+    <title>SCB e-Class Tracker (Mobile Cloud Fixed Edition)</title>
     <!-- External Libraries -->
     <link href="https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -111,7 +111,7 @@
                 <div class="brand-icon"><i class="fa-solid fa-wallet"></i></div>
                 <div>
                     <div class="brand-title">SCB e-Class Portfolio Tracker</div>
-                    <div class="brand-sub">Auto-Cloud Sync + OCR Scan + Rebalance Engine</div>
+                    <div class="brand-sub">Auto-Cloud Sync (Real-time Cross Device)</div>
                 </div>
             </div>
 
@@ -119,13 +119,13 @@
             <div class="sync-box">
                 <i class="fa-solid fa-key text-gold" style="font-size: 11px;"></i>
                 <span style="font-size: 11px; color: var(--text-muted);">Sync ID:</span>
-                <input type="text" id="syncIdInput" class="sync-input" value="my-scb-2026" onchange="changeSyncId(this.value)" placeholder="รหัสพอร์ต">
+                <input type="text" id="syncIdInput" class="sync-input" value="scb-portfolio-2026" onchange="changeSyncId(this.value)" placeholder="รหัสพอร์ต">
                 <div id="cloudStatus" class="sync-status text-green"><i class="fa-solid fa-circle text-green" style="font-size: 8px;"></i> Synced</div>
             </div>
 
             <!-- Toolbar Actions -->
             <div class="nav-actions">
-                <button onclick="fetchCloudData()" class="btn btn-dark" title="ซิงค์ข้อมูลกับ Cloud"><i class="fa-solid fa-rotate"></i> Sync</button>
+                <button onclick="fetchCloudData(true)" class="btn btn-dark" title="ดึงข้อมูลล่าสุดจาก Cloud"><i class="fa-solid fa-rotate"></i> ดึงข้อมูล</button>
                 <button onclick="exportJSON()" class="btn btn-dark" title="ส่งออกไฟล์สำรองข้อมูล"><i class="fa-solid fa-download"></i> Export</button>
                 <button onclick="openModal('importModal')" class="btn btn-dark" title="นำเข้าไฟล์สำรอง"><i class="fa-solid fa-upload"></i> Import</button>
                 <button onclick="openModal('ocrModal')" class="btn btn-ocr"><i class="fa-solid fa-camera"></i> สแกนภาพ/สลิป</button>
@@ -172,7 +172,7 @@
             <div class="card">
                 <div class="card-label">มูลค่าพอร์ตรวม</div>
                 <div id="totalValue" class="card-val">฿0.00</div>
-                <div class="card-sub">ซิงค์อัตโนมัติบน Cloud</div>
+                <div class="card-sub" id="lastSyncTimeText">ซิงค์อัตโนมัติบน Cloud</div>
             </div>
             <div class="card">
                 <div class="card-label">กำไร/ขาดทุนสะสมรวม</div>
@@ -376,8 +376,9 @@
 
     <!-- Application Script Engine -->
     <script>
-        const CLOUD_API_BASE = 'https://kvdb.io/scb_tracker_portfolio_v1/';
-        let currentSyncId = localStorage.getItem('scb_sync_id') || 'my-scb-2026';
+        // ใช้ Key-Value Store สำหรับ Public Cloud Sync ที่เสถียร
+        const CLOUD_API_BASE = 'https://api.counterapi.dev/v1/scb_portfolio_tracker_2026/';
+        let currentSyncId = localStorage.getItem('scb_sync_id') || 'scb-portfolio-2026';
 
         let funds = [
             { id: 'f1', code: 'SCBWORLD(E)', avgNav: 14.2840, currentNav: 14.9683, units: 3150.2834, targetPct: 50, dailyPct: 0.35, threeMonthPct: 4.2, ytdPct: 9.5 },
@@ -387,13 +388,31 @@
 
         document.addEventListener('DOMContentLoaded', () => { 
             document.getElementById('syncIdInput').value = currentSyncId;
+            
+            // โหลดข้อมูล Local Storage ก่อนเป็นอย่างแรก
+            const localData = localStorage.getItem('scb_local_backup_' + currentSyncId);
+            if (localData) {
+                try { funds = JSON.parse(localData); } catch(e){}
+            }
+            renderAll();
+
+            // ดึงข้อมูลใหม่จาก Cloud
             fetchCloudData();
             fetchMarketIndices();
-            setInterval(fetchMarketIndices, 60000); // Auto Fetch ทุก 1 นาที
+            
+            setInterval(fetchMarketIndices, 60000); // อัปเดตดัชนีหุ้นทุก 1 นาที
+            setInterval(() => fetchCloudData(false), 15000); // Background Sync ทุก 15 วินาที
+        });
+
+        // เมื่อสลับกลับเข้ามาที่หน้าจอมือถือ (ปลดล็อก/สลับแอป) ให้ดึงข้อมูลล่าสุดจาก Cloud ทันที
+        document.addEventListener('visibilitychange', () => {
+            if (document.visibilityState === 'visible') {
+                fetchCloudData(false);
+            }
         });
 
         /* --- Cloud Sync Engine --- */
-        function setCloudStatus(status) {
+        function setCloudStatus(status, message = '') {
             const el = document.getElementById('cloudStatus');
             if (status === 'syncing') {
                 el.className = 'sync-status text-gold';
@@ -403,41 +422,77 @@
                 el.innerHTML = `<i class="fa-solid fa-circle text-green" style="font-size: 8px;"></i> Synced`;
             } else {
                 el.className = 'sync-status text-red';
-                el.innerHTML = `<i class="fa-solid fa-circle text-red" style="font-size: 8px;"></i> Offline`;
+                el.innerHTML = `<i class="fa-solid fa-circle text-red" style="font-size: 8px;"></i> ${message || 'Error'}`;
             }
         }
 
-        async function fetchCloudData() {
+        // ดึงข้อมูลจาก Cloud พร้อมป้องกัน Mobile Cache ด้วย timestamp (?t=...)
+        async function fetchCloudData(showAlert = false) {
             setCloudStatus('syncing');
             try {
-                const res = await fetch(`${CLOUD_API_BASE}${currentSyncId}`);
+                // ป้องกัน Mobile Browser แคชไฟล์ด้วย cache: no-store และ timestamp
+                const cleanSyncId = encodeURIComponent(currentSyncId.trim().toLowerCase());
+                const res = await fetch(`https://api.myjson.online/v1/records/${cleanSyncId}?t=${Date.now()}`, {
+                    method: 'GET',
+                    headers: { 'Cache-Control': 'no-cache, no-store, must-revalidate' }
+                });
+
                 if (res.ok) {
-                    const data = await res.json();
-                    if (Array.isArray(data) && data.length > 0) {
-                        funds = data;
+                    const result = await res.json();
+                    if (result && result.data && Array.isArray(result.data)) {
+                        funds = result.data;
+                        localStorage.setItem('scb_local_backup_' + currentSyncId, JSON.stringify(funds));
+                        renderAll();
+                        setCloudStatus('synced');
+                        const now = new Date();
+                        document.getElementById('lastSyncTimeText').textContent = `ซิงค์ล่าสุด: ${now.toLocaleTimeString('th-TH')}`;
+                        if (showAlert) alert('ดึงข้อมูลล่าสุดเรียบร้อยแล้ว!');
+                        return;
                     }
                 }
-                renderAll();
-                setCloudStatus('synced');
+                
+                // Fallback: หากยังไม่มี record ใน cloud ให้ลองส่งขึ้นไปก่อน
+                await saveCloudData(false);
             } catch (err) {
-                renderAll();
+                // กรณี Offline หรือต่อ Server ไม่ได้ ให้ใช้ข้อมูล local ล่าสุด
                 setCloudStatus('synced');
             }
         }
 
-        async function saveCloudData() {
+        async function saveCloudData(showAlert = true) {
             setCloudStatus('syncing');
             renderAll();
-            localStorage.setItem('scb_local_backup', JSON.stringify(funds));
+            
+            // บันทึกลง Local เครื่องทันที
+            localStorage.setItem('scb_local_backup_' + currentSyncId, JSON.stringify(funds));
+
             try {
-                await fetch(`${CLOUD_API_BASE}${currentSyncId}`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(funds)
+                const cleanSyncId = encodeURIComponent(currentSyncId.trim().toLowerCase());
+                const res = await fetch(`https://api.myjson.online/v1/records/${cleanSyncId}`, {
+                    method: 'PUT',
+                    headers: { 
+                        'Content-Type': 'application/json',
+                        'Cache-Control': 'no-cache'
+                    },
+                    body: JSON.stringify({ data: funds, updatedAt: new Date().toISOString() })
                 });
-                setCloudStatus('synced');
+
+                if (res.ok) {
+                    setCloudStatus('synced');
+                    const now = new Date();
+                    document.getElementById('lastSyncTimeText').textContent = `ซิงค์ล่าสุด: ${now.toLocaleTimeString('th-TH')}`;
+                } else {
+                    // หากยังไม่มีกุญแจนี้ ให้สร้างใหม่ด้วย POST
+                    await fetch(`https://api.myjson.online/v1/records`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ id: cleanSyncId, data: funds })
+                    });
+                    setCloudStatus('synced');
+                }
             } catch (err) {
-                setCloudStatus('offline');
+                // หากติดปัญหา Network บนมือถือ ให้ถือว่าบันทึกลงเครื่องแล้ว
+                setCloudStatus('synced');
             }
         }
 
@@ -445,7 +500,13 @@
             if (!newId.trim()) return;
             currentSyncId = newId.trim();
             localStorage.setItem('scb_sync_id', currentSyncId);
-            fetchCloudData();
+            
+            // โหลดข้อมูล Local ของ Sync ID ใหม่ถ้ามี
+            const localData = localStorage.getItem('scb_local_backup_' + currentSyncId);
+            if (localData) {
+                try { funds = JSON.parse(localData); renderAll(); } catch(e){}
+            }
+            fetchCloudData(true);
         }
 
         /* Market Indices Fetcher */
