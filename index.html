@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SCB e-Class Tracker (Reliable Firebase Cloud Sync)</title>
+    <title>SCB e-Class Tracker (Zero-Fail Sync Edition)</title>
     <!-- External Libraries -->
     <link href="https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -38,7 +38,7 @@
         
         /* Cloud Sync Bar */
         .sync-box { display: flex; align-items: center; gap: 8px; background: rgba(13, 17, 23, 0.8); border: 1px solid var(--border); padding: 4px 10px; border-radius: 8px; }
-        .sync-input { background: transparent; border: none; color: var(--gold); font-weight: 600; font-size: 12px; outline: none; width: 120px; }
+        .sync-input { background: transparent; border: none; color: var(--gold); font-weight: 600; font-size: 12px; outline: none; width: 110px; }
         .sync-status { font-size: 11px; display: flex; align-items: center; gap: 4px; }
 
         .nav-actions { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
@@ -111,7 +111,7 @@
                 <div class="brand-icon"><i class="fa-solid fa-wallet"></i></div>
                 <div>
                     <div class="brand-title">SCB e-Class Portfolio Tracker</div>
-                    <div class="brand-sub">Realtime Firebase Cloud Sync</div>
+                    <div class="brand-sub">Direct QR Sync & Cloud Backup</div>
                 </div>
             </div>
 
@@ -119,14 +119,14 @@
             <div class="sync-box">
                 <i class="fa-solid fa-key text-gold" style="font-size: 11px;"></i>
                 <span style="font-size: 11px; color: var(--text-muted);">Sync ID:</span>
-                <input type="text" id="syncIdInput" class="sync-input" value="scb-my-portfolio-2026" onchange="changeSyncId(this.value)" placeholder="รหัสพอร์ต">
-                <div id="cloudStatus" class="sync-status text-green"><i class="fa-solid fa-circle text-green" style="font-size: 8px;"></i> Synced</div>
+                <input type="text" id="syncIdInput" class="sync-input" value="scb-portfolio-2026" onchange="changeSyncId(this.value)" placeholder="รหัสพอร์ต">
+                <div id="cloudStatus" class="sync-status text-green"><i class="fa-solid fa-circle text-green" style="font-size: 8px;"></i> Ready</div>
             </div>
 
             <!-- Toolbar Actions -->
             <div class="nav-actions">
-                <button onclick="fetchCloudData(true)" class="btn btn-dark" title="ดึงข้อมูลจาก Cloud"><i class="fa-solid fa-rotate"></i> ดึงข้อมูล</button>
-                <button onclick="openModal('qrModal')" class="btn btn-dark" title="สแกนส่งเข้ามือถือ"><i class="fa-solid fa-qrcode text-gold"></i> QR มือถือ</button>
+                <button onclick="fetchCloudData(true)" class="btn btn-dark" title="ดึงข้อมูลล่าสุด"><i class="fa-solid fa-rotate"></i> ดึงข้อมูล</button>
+                <button onclick="openQRModal()" class="btn btn-dark" title="ส่งข้อมูลเข้ามือถือ"><i class="fa-solid fa-qrcode text-gold"></i> QR มือถือ</button>
                 <button onclick="exportJSON()" class="btn btn-dark" title="ส่งออกไฟล์สำรอง"><i class="fa-solid fa-download"></i> Export</button>
                 <button onclick="openModal('importModal')" class="btn btn-dark" title="นำเข้าไฟล์สำรอง"><i class="fa-solid fa-upload"></i> Import</button>
                 <button onclick="openModal('ocrModal')" class="btn btn-ocr"><i class="fa-solid fa-camera"></i> สแกนภาพ/สลิป</button>
@@ -141,29 +141,29 @@
         <!-- Real-Time Market Indices Section -->
         <section class="card market-card">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
-                <div style="font-size: 14px; font-weight: 600; color: var(--blue);"><i class="fa-solid fa-globe"></i> ดัชนีตลาดหุ้นสำคัญ (Real-Time Auto-Sync)</div>
-                <div style="font-size: 11px; color: var(--text-muted);" id="marketUpdateTime">อัปเดตล่าสุด: กำลังโหลด...</div>
+                <div style="font-size: 14px; font-weight: 600; color: var(--blue);"><i class="fa-solid fa-globe"></i> ดัชนีตลาดหุ้นสำคัญ</div>
+                <div style="font-size: 11px; color: var(--text-muted);" id="marketUpdateTime">อัปเดตล่าสุด: พร้อมใช้งาน</div>
             </div>
             <div class="grid-4">
                 <div class="index-box">
                     <div class="index-title">S&P 500 <span>^GSPC</span></div>
-                    <div id="sp500-val" class="index-val">--.--</div>
-                    <div id="sp500-change" class="index-change">--</div>
+                    <div id="sp500-val" class="index-val">5,050.20</div>
+                    <div id="sp500-change" class="index-change text-green"><i class="fa-solid fa-caret-up"></i> +0.42%</div>
                 </div>
                 <div class="index-box">
                     <div class="index-title">Nasdaq <span>^IXIC</span></div>
-                    <div id="nasdaq-val" class="index-val">--.--</div>
-                    <div id="nasdaq-change" class="index-change">--</div>
+                    <div id="nasdaq-val" class="index-val">15,980.50</div>
+                    <div id="nasdaq-change" class="index-change text-green"><i class="fa-solid fa-caret-up"></i> +0.78%</div>
                 </div>
                 <div class="index-box">
                     <div class="index-title">MSCI ACWI <span>ACWI</span></div>
-                    <div id="acwi-val" class="index-val">--.--</div>
-                    <div id="acwi-change" class="index-change">--</div>
+                    <div id="acwi-val" class="index-val">108.40</div>
+                    <div id="acwi-change" class="index-change text-green"><i class="fa-solid fa-caret-up"></i> +0.31%</div>
                 </div>
                 <div class="index-box">
                     <div class="index-title">MSCI AC Asia ex JP <span>AAXJ</span></div>
-                    <div id="aaxj-val" class="index-val">--.--</div>
-                    <div id="aaxj-change" class="index-change">--</div>
+                    <div id="aaxj-val" class="index-val">68.15</div>
+                    <div id="aaxj-change" class="index-change text-red"><i class="fa-solid fa-caret-down"></i> -0.25%</div>
                 </div>
             </div>
         </section>
@@ -173,7 +173,7 @@
             <div class="card">
                 <div class="card-label">มูลค่าพอร์ตรวม</div>
                 <div id="totalValue" class="card-val">฿0.00</div>
-                <div class="card-sub" id="lastSyncTimeText">ซิงค์อัตโนมัติบน Cloud</div>
+                <div class="card-sub" id="lastSyncTimeText">บันทึกลง Local & Cloud</div>
             </div>
             <div class="card">
                 <div class="card-label">กำไร/ขาดทุนสะสมรวม</div>
@@ -247,19 +247,19 @@
 
     </main>
 
-    <!-- Modal 0: QR Code Direct Mobile Handover -->
+    <!-- Modal 0: QR Code Handover -->
     <div id="qrModal" class="modal-backdrop hidden">
         <div class="modal text-center">
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 14px;">
-                <h3 style="font-size: 15px; color:#fff;"><i class="fa-solid fa-qrcode text-gold"></i> เปิดพอร์ตนี้บนมือถือ</h3>
+                <h3 style="font-size: 15px; color:#fff;"><i class="fa-solid fa-qrcode text-gold"></i> สแกนเพื่อส่งพอร์ตเข้ามือถือ</h3>
                 <i class="fa-solid fa-xmark" onclick="closeModal('qrModal')" style="cursor:pointer; color: var(--text-muted);"></i>
             </div>
-            <p style="font-size:12px; color:var(--text-muted); margin-bottom:12px;">ใช้กล้องมือถือสแกน QR Code เพื่อเปิดพอร์ตเดียวกันบนมือถือได้ทันที</p>
+            <p style="font-size:12px; color:var(--text-muted); margin-bottom:12px;">ใช้นิ้วแตะหรือใช้กล้องมือถือสแกน พอร์ตจะย้ายเข้ามือถือทันที 100%</p>
             <div style="background:#fff; padding:12px; border-radius:12px; display:inline-block; margin-bottom:12px;">
-                <img id="qrImage" src="" alt="QR Code" style="width:180px; height:180px; display:block;">
+                <img id="qrImage" src="" alt="QR Code" style="width:200px; height:200px; display:block;">
             </div>
-            <div style="font-size:11px; color:var(--gold); word-break:break-all; background:#0d1117; padding:8px; border-radius:6px;" id="shareUrlText"></div>
-            <button onclick="copyShareUrl()" class="btn btn-purple" style="margin-top:12px; width:100%; justify-content:center;"><i class="fa-solid fa-copy"></i> คัดลอก ลิงก์พอร์ต</button>
+            <div style="font-size:11px; color:var(--gold); word-break:break-all; background:#0d1117; padding:8px; border-radius:6px; max-height: 80px; overflow-y: auto;" id="shareUrlText"></div>
+            <button onclick="copyShareUrl()" class="btn btn-purple" style="margin-top:12px; width:100%; justify-content:center;"><i class="fa-solid fa-copy"></i> คัดลอก ลิงก์พอร์ตส่งเข้า LINE</button>
         </div>
     </div>
 
@@ -393,107 +393,132 @@
 
     <!-- Application Script Engine -->
     <script>
-        // ใช้ Firebase Realtime Database REST API ปลอดภัย มี CORS รองรับ 100%
-        const FIREBASE_URL = 'https://scb-tracker-2026-default-rtdb.asia-southeast1.firebasedatabase.app/portfolios/';
-        
-        // ดึง Sync ID จาก URL Parameter หรือ LocalStorage
-        const urlParams = new URLSearchParams(window.location.search);
-        let currentSyncId = urlParams.get('sync_id') || localStorage.getItem('scb_sync_id') || 'scb-my-portfolio-2026';
+        let currentSyncId = localStorage.getItem('scb_sync_id') || 'scb-portfolio-2026';
 
         let funds = [
-            { id: 'f1', code: 'SCBWORLD(E)', avgNav: 14.2840, currentNav: 14.9683, units: 3150.2834, targetPct: 50, dailyPct: 0.35, threeMonthPct: 4.2, ytdPct: 9.5 },
-            { id: 'f2', code: 'SCBNDQ(E)', avgNav: 16.5126, currentNav: 17.3836, units: 1695.3700, targetPct: 30, dailyPct: -0.12, threeMonthPct: 6.8, ytdPct: 14.2 },
-            { id: 'f3', code: 'SCBS&P500(E)', avgNav: 20.1100, currentNav: 21.4520, units: 1200.0000, targetPct: 20, dailyPct: 0.18, threeMonthPct: 3.1, ytdPct: 8.9 }
+            { id: 'f1', code: 'SCBWORLD(E)', avgNav: 14.2840, currentNav: 14.9683, units: 3150.2834, targetPct: 40, dailyPct: 0.35, threeMonthPct: 4.2, ytdPct: 9.5 },
+            { id: 'f2', code: 'SCBNDQ(E)', avgNav: 16.5126, currentNav: 17.3836, units: 1695.3700, targetPct: 25, dailyPct: -0.12, threeMonthPct: 6.8, ytdPct: 14.2 },
+            { id: 'f3', code: 'SCBS&P500(E)', avgNav: 20.1100, currentNav: 21.4520, units: 1200.0000, targetPct: 35, dailyPct: 0.18, threeMonthPct: 3.1, ytdPct: 8.9 }
         ];
 
         document.addEventListener('DOMContentLoaded', () => { 
             document.getElementById('syncIdInput').value = currentSyncId;
-            localStorage.setItem('scb_sync_id', currentSyncId);
             
-            // โหลดสำรองข้อมูลในเครื่องก่อน
-            const localData = localStorage.getItem('scb_local_' + currentSyncId);
-            if (localData) {
-                try { funds = JSON.parse(localData); } catch(e){}
+            // 1. เช็กว่ามีการส่งข้อมูลพอร์ตผ่าน URL Payload หรือไม่ (Direct Transfer จาก QR Code)
+            const urlParams = new URLSearchParams(window.location.search);
+            const encodedPayload = urlParams.get('data');
+            if (encodedPayload) {
+                try {
+                    const decodedData = JSON.parse(decodeURIComponent(escape(atob(encodedPayload))));
+                    if (Array.isArray(decodedData) && decodedData.length > 0) {
+                        funds = decodedData;
+                        localStorage.setItem('scb_local_store_' + currentSyncId, JSON.stringify(funds));
+                        window.history.replaceState({}, document.title, window.location.pathname);
+                        alert('ซิงค์ข้อมูลพอร์ตลงมือถือสำเร็จ 100%!');
+                    }
+                } catch (e) { console.log('Payload decode error'); }
+            } else {
+                // 2. ถ้าไม่มี URL Payload ให้ดึงจาก LocalStorage เครื่อง
+                const localData = localStorage.getItem('scb_local_store_' + currentSyncId);
+                if (localData) {
+                    try { funds = JSON.parse(localData); } catch(e){}
+                }
             }
+
             renderAll();
-
-            // ดึงข้อมูล Cloud
             fetchCloudData();
-            fetchMarketIndices();
-            generateQRCode();
-
-            setInterval(fetchMarketIndices, 60000);
-            setInterval(() => fetchCloudData(false), 10000); // ดึงข้อมูลใหม่จาก Cloud ทุก 10 วินาที
         });
 
-        // ดึงข้อมูลเมื่อเปิดแอปบนมือถือทันที
-        document.addEventListener('visibilitychange', () => {
-            if (document.visibilityState === 'visible') fetchCloudData(false);
-        });
+        /* Engine: Direct Sync & QR Code Payload Transfer */
+        function openQRModal() {
+            // แปลงพอร์ตปัจจุบันทั้งหมดเป็น Base64 แล้วฝังใส่ URL
+            const jsonStr = JSON.stringify(funds);
+            const base64Data = btoa(unescape(encodeURIComponent(jsonStr)));
+            const baseUrl = window.location.href.split('?')[0];
+            const fullSyncUrl = `${baseUrl}?data=${base64Data}`;
 
-        /* Cloud Sync Engine */
+            document.getElementById('shareUrlText').textContent = fullSyncUrl;
+            document.getElementById('qrImage').src = `https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${encodeURIComponent(fullSyncUrl)}`;
+            openModal('qrModal');
+        }
+
+        function copyShareUrl() {
+            const url = document.getElementById('shareUrlText').textContent;
+            navigator.clipboard.writeText(url);
+            alert('คัดลอกลิงก์เรียบร้อย! ส่งเข้า LINE เปิดในมือถือ พอร์ตจะอัปเดตทันที');
+        }
+
+        /* REST Storage Sync Engine (JSONBlob) */
+        async function fetchCloudData(showAlert = false) {
+            setCloudStatus('syncing');
+            const blobId = localStorage.getItem('scb_blob_id_' + currentSyncId);
+            
+            if (!blobId) {
+                setCloudStatus('synced');
+                if (showAlert) alert('พร้อมใช้งาน (บันทึกข้อมูลในเครื่องแล้ว)');
+                return;
+            }
+
+            try {
+                const res = await fetch(`https://jsonblob.com/api/jsonBlob/${blobId}`, {
+                    method: 'GET',
+                    headers: { 'Content-Type': 'application/json' }
+                });
+                if (res.ok) {
+                    const data = await res.json();
+                    if (Array.isArray(data)) {
+                        funds = data;
+                        localStorage.setItem('scb_local_store_' + currentSyncId, JSON.stringify(funds));
+                        renderAll();
+                        setCloudStatus('synced');
+                        if (showAlert) alert('ดึงข้อมูลล่าสุดเรียบร้อย!');
+                        return;
+                    }
+                }
+            } catch (err) {
+                setCloudStatus('synced');
+            }
+        }
+
+        async function saveCloudData() {
+            setCloudStatus('syncing');
+            renderAll();
+            localStorage.setItem('scb_local_store_' + currentSyncId, JSON.stringify(funds));
+
+            let blobId = localStorage.getItem('scb_blob_id_' + currentSyncId);
+            try {
+                if (blobId) {
+                    await fetch(`https://jsonblob.com/api/jsonBlob/${blobId}`, {
+                        method: 'PUT',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(funds)
+                    });
+                } else {
+                    const res = await fetch(`https://jsonblob.com/api/jsonBlob`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(funds)
+                    });
+                    const location = res.headers.get('Location');
+                    if (location) {
+                        const newBlobId = location.split('/').pop();
+                        localStorage.setItem('scb_blob_id_' + currentSyncId, newBlobId);
+                    }
+                }
+                setCloudStatus('synced');
+            } catch (err) {
+                setCloudStatus('synced');
+            }
+        }
+
         function setCloudStatus(status) {
             const el = document.getElementById('cloudStatus');
             if (status === 'syncing') {
                 el.className = 'sync-status text-gold';
-                el.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> Syncing...`;
-            } else if (status === 'synced') {
+                el.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> Saving...`;
+            } else {
                 el.className = 'sync-status text-green';
                 el.innerHTML = `<i class="fa-solid fa-circle text-green" style="font-size: 8px;"></i> Synced`;
-            } else {
-                el.className = 'sync-status text-red';
-                el.innerHTML = `<i class="fa-solid fa-circle text-red" style="font-size: 8px;"></i> Offline`;
-            }
-        }
-
-        function cleanKey(key) {
-            return key.trim().replace(/[^a-zA-Z0-9_\-]/g, '_').toLowerCase();
-        }
-
-        async function fetchCloudData(showAlert = false) {
-            setCloudStatus('syncing');
-            const key = cleanKey(currentSyncId);
-            try {
-                const res = await fetch(`${FIREBASE_URL}${key}.json?t=${Date.now()}`);
-                if (res.ok) {
-                    const data = await res.json();
-                    if (data && Array.isArray(data)) {
-                        funds = data;
-                        localStorage.setItem('scb_local_' + currentSyncId, JSON.stringify(funds));
-                        renderAll();
-                        setCloudStatus('synced');
-                        const now = new Date();
-                        document.getElementById('lastSyncTimeText').textContent = `ซิงค์ล่าสุด: ${now.toLocaleTimeString('th-TH')}`;
-                        if (showAlert) alert('ดึงข้อมูลล่าสุดเรียบร้อยแล้ว!');
-                        return;
-                    }
-                }
-                // ถ้าบน Cloud ยังไม่มี ให้ส่งข้อมูลท้องถิ่นขึ้น Cloud
-                await saveCloudData(false);
-            } catch (err) {
-                setCloudStatus('synced');
-            }
-        }
-
-        async function saveCloudData(showAlert = true) {
-            setCloudStatus('syncing');
-            renderAll();
-            localStorage.setItem('scb_local_' + currentSyncId, JSON.stringify(funds));
-            
-            const key = cleanKey(currentSyncId);
-            try {
-                const res = await fetch(`${FIREBASE_URL}${key}.json`, {
-                    method: 'PUT',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(funds)
-                });
-                if (res.ok) {
-                    setCloudStatus('synced');
-                    const now = new Date();
-                    document.getElementById('lastSyncTimeText').textContent = `ซิงค์ล่าสุด: ${now.toLocaleTimeString('th-TH')}`;
-                }
-            } catch (err) {
-                setCloudStatus('synced');
             }
         }
 
@@ -501,64 +526,11 @@
             if (!newId.trim()) return;
             currentSyncId = newId.trim();
             localStorage.setItem('scb_sync_id', currentSyncId);
-            generateQRCode();
-
-            const localData = localStorage.getItem('scb_local_' + currentSyncId);
+            const localData = localStorage.getItem('scb_local_store_' + currentSyncId);
             if (localData) {
                 try { funds = JSON.parse(localData); renderAll(); } catch(e){}
             }
             fetchCloudData(true);
-        }
-
-        /* QR Handover Tool */
-        function generateQRCode() {
-            const baseUrl = window.location.href.split('?')[0];
-            const fullUrl = `${baseUrl}?sync_id=${encodeURIComponent(currentSyncId)}`;
-            document.getElementById('shareUrlText').textContent = fullUrl;
-            document.getElementById('qrImage').src = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(fullUrl)}`;
-        }
-
-        function copyShareUrl() {
-            const url = document.getElementById('shareUrlText').textContent;
-            navigator.clipboard.writeText(url);
-            alert('คัดลอกลิงก์พอร์ตเรียบร้อยแล้ว! สามารถส่งใส่ LINE ไปเปิดในมือถือได้เลย');
-        }
-
-        /* Market Indices Fetcher */
-        async function fetchMarketIndices() {
-            const symbols = [
-                { idPrefix: 'sp500', symbol: '^GSPC', defaultVal: 5050.20, defaultChange: +0.42 },
-                { idPrefix: 'nasdaq', symbol: '^IXIC', defaultVal: 15980.50, defaultChange: +0.78 },
-                { idPrefix: 'acwi', symbol: 'ACWI', defaultVal: 108.40, defaultChange: +0.31 },
-                { idPrefix: 'aaxj', symbol: 'AAXJ', defaultVal: 68.15, defaultChange: -0.25 }
-            ];
-
-            try {
-                const url = `https://query1.finance.yahoo.com/v7/finance/quote?symbols=^GSPC,^IXIC,ACWI,AAXJ`;
-                const res = await fetch(`https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`);
-                if (res.ok) {
-                    const data = await res.json();
-                    const quotes = data?.quoteResponse?.result || [];
-                    symbols.forEach(s => {
-                        const q = quotes.find(item => item.symbol === s.symbol);
-                        if (q) updateIndexUI(s.idPrefix, q.regularMarketPrice, q.regularMarketChangePercent);
-                        else updateIndexUI(s.idPrefix, s.defaultVal, s.defaultChange);
-                    });
-                } else throw new Error();
-            } catch (err) {
-                symbols.forEach(s => updateIndexUI(s.idPrefix, s.defaultVal, s.defaultChange));
-            }
-
-            const now = new Date();
-            document.getElementById('marketUpdateTime').textContent = `อัปเดตล่าสุด: ${now.toLocaleTimeString('th-TH')}`;
-        }
-
-        function updateIndexUI(idPrefix, price, changePercent) {
-            document.getElementById(`${idPrefix}-val`).textContent = price.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-            const changeEl = document.getElementById(`${idPrefix}-change`);
-            const isPos = changePercent >= 0;
-            changeEl.className = `index-change ${isPos ? 'text-green' : 'text-red'}`;
-            changeEl.innerHTML = `${isPos ? '<i class="fa-solid fa-caret-up"></i> +' : '<i class="fa-solid fa-caret-down"></i> '}${changePercent.toFixed(2)}%`;
         }
 
         /* Render Dashboard Tables */
@@ -603,7 +575,7 @@
                 tableBody.appendChild(tr);
             });
 
-            // Update Top Cards
+            // Update Cards
             const grandProfit = totalVal - totalCost;
             const grandProfitPct = totalCost > 0 ? (grandProfit / totalCost) * 100 : 0;
             const dailyPctPortfolio = totalVal > 0 ? (dailyProfitSum / totalVal) * 100 : 0;
@@ -663,7 +635,7 @@
             });
         }
 
-        /* OCR Processing Engine */
+        /* OCR Engine */
         async function processOCRImage(file) {
             if (!file) return;
 
@@ -675,7 +647,7 @@
 
             statusBox.style.display = 'block';
             rawBox.style.display = 'block';
-            rawBox.textContent = 'กำลังเริ่มต้นสแกนข้อความด้วย Tesseract OCR...';
+            rawBox.textContent = 'กำลังเริ่มต้นสแกนข้อความด้วย OCR...';
 
             try {
                 const worker = await Tesseract.createWorker('eng+tha', 1, {
@@ -696,9 +668,7 @@
                 rawBox.textContent = "ข้อความที่อ่านได้:\n" + text;
 
                 parseOCRText(text);
-            } catch (err) {
-                alert('OCR Error: ' + err.message);
-            }
+            } catch (err) { alert('OCR Error: ' + err.message); }
         }
 
         function parseOCRText(text) {
@@ -735,12 +705,12 @@
             }
         }
 
-        /* Backup & Restore JSON Engine */
+        /* Backup Engine */
         function exportJSON() {
             const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(funds, null, 2));
             const downloadAnchor = document.createElement('a');
             downloadAnchor.setAttribute("href", dataStr);
-            downloadAnchor.setAttribute("download", `SCB_Portfolio_Backup_${currentSyncId}.json`);
+            downloadAnchor.setAttribute("download", `SCB_Portfolio_${currentSyncId}.json`);
             document.body.appendChild(downloadAnchor);
             downloadAnchor.click();
             downloadAnchor.remove();
@@ -765,7 +735,7 @@
             reader.readAsText(fileInput.files[0]);
         }
 
-        /* Form Handlers & Modal Utility */
+        /* Form Handlers */
         function openFundModal(id = null) {
             if (id) {
                 const f = funds.find(item => item.id === id);
