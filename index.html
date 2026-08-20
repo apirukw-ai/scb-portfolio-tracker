@@ -3,10 +3,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SCB e-Class Tracker (Zero-Fail Sync Edition)</title>
-    <!-- External Libraries -->
+    <title>SCB e-Class Portfolio Tracker (Real-time Sync)</title>
     <link href="https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- Firebase SDK (Compat Version) -->
+    <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-database-compat.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
     
     <style>
@@ -28,22 +31,19 @@
         * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Kanit', sans-serif; }
         body { background-color: var(--bg-main); color: var(--text-main); min-height: 100vh; padding-bottom: 60px; }
 
-        /* Navbar Header */
         .navbar { background: linear-gradient(135deg, #2e1065 0%, #0b0f17 100%); border-bottom: 1px solid rgba(168, 85, 247, 0.2); padding: 12px 20px; position: sticky; top: 0; z-index: 100; backdrop-filter: blur(8px); }
         .nav-container { max-width: 1400px; margin: 0 auto; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; }
         .brand { display: flex; align-items: center; gap: 12px; }
         .brand-icon { width: 42px; height: 42px; background: rgba(168, 85, 247, 0.2); border: 1px solid var(--purple-light); border-radius: 10px; display: flex; align-items: center; justify-content: center; color: var(--gold); font-size: 18px; }
         .brand-title { font-size: 18px; font-weight: 600; color: #fff; }
         .brand-sub { font-size: 11px; color: #d8b4fe; }
-        
-        /* Cloud Sync Bar */
+
         .sync-box { display: flex; align-items: center; gap: 8px; background: rgba(13, 17, 23, 0.8); border: 1px solid var(--border); padding: 4px 10px; border-radius: 8px; }
-        .sync-input { background: transparent; border: none; color: var(--gold); font-weight: 600; font-size: 12px; outline: none; width: 110px; }
+        .sync-input { background: transparent; border: none; color: var(--gold); font-weight: 600; font-size: 12px; outline: none; width: 130px; }
         .sync-status { font-size: 11px; display: flex; align-items: center; gap: 4px; }
 
         .nav-actions { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
 
-        /* Buttons */
         .btn { border: none; border-radius: 8px; padding: 8px 12px; font-size: 12px; font-weight: 500; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; font-family: inherit; transition: 0.2s; }
         .btn-purple { background: var(--purple-main); color: #fff; border: 1px solid var(--purple-light); }
         .btn-purple:hover { background: #581c87; }
@@ -53,24 +53,19 @@
         .btn-dark:hover { background: #30363d; }
         .btn-sm { padding: 4px 8px; font-size: 11px; border-radius: 4px; }
 
-        /* Layout Container */
         .container { max-width: 1400px; margin: 20px auto; padding: 0 16px; display: flex; flex-direction: column; gap: 20px; }
-
-        /* Grids & Cards */
         .grid-4 { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px; }
         .card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 12px; padding: 18px; }
         .card-label { font-size: 12px; color: var(--text-muted); font-weight: 500; }
         .card-val { font-size: 24px; font-weight: 600; color: #fff; margin-top: 4px; }
         .card-sub { font-size: 11px; color: var(--text-muted); margin-top: 4px; }
 
-        /* Real-Time Market Section */
         .market-card { background: linear-gradient(180deg, rgba(22, 27, 34, 0.9) 0%, rgba(13, 17, 23, 0.9) 100%); border: 1px solid rgba(56, 189, 248, 0.2); }
         .index-box { background: rgba(13, 17, 23, 0.6); border: 1px solid var(--border); border-radius: 8px; padding: 12px; display: flex; flex-direction: column; gap: 4px; }
         .index-title { font-size: 12px; color: var(--text-muted); font-weight: 500; display: flex; justify-content: space-between; }
         .index-val { font-size: 18px; font-weight: 700; color: #fff; }
         .index-change { font-size: 12px; font-weight: 600; display: flex; align-items: center; gap: 4px; }
 
-        /* Tables */
         .table-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 12px; padding: 18px; }
         .table-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; padding-bottom: 10px; border-bottom: 1px solid var(--border); }
         .table-responsive { width: 100%; overflow-x: auto; }
@@ -79,7 +74,6 @@
         td { padding: 12px; border-bottom: 1px solid rgba(255, 255, 255, 0.04); }
         tr:hover td { background: var(--bg-card-hover); }
 
-        /* Helpers */
         .text-right { text-align: right; }
         .text-center { text-align: center; }
         .text-green { color: var(--green); }
@@ -88,11 +82,9 @@
         .text-gold { color: var(--gold); }
         .badge { background: rgba(168, 85, 247, 0.2); color: var(--purple-light); border: 1px solid rgba(168, 85, 247, 0.4); padding: 2px 8px; border-radius: 4px; font-size: 11px; }
 
-        /* Drop Zone */
         .drop-zone { border: 2px dashed var(--gold); border-radius: 10px; padding: 25px; text-align: center; background: rgba(251, 191, 36, 0.05); cursor: pointer; transition: 0.2s; }
         .drop-zone:hover { background: rgba(251, 191, 36, 0.1); }
 
-        /* Modals */
         .modal-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,0.85); backdrop-filter: blur(5px); display: flex; align-items: center; justify-content: center; z-index: 200; padding: 16px; }
         .modal-backdrop.hidden { display: none; }
         .modal { background: #161b22; border: 1px solid var(--border); border-radius: 12px; width: 100%; max-width: 500px; padding: 22px; }
@@ -104,76 +96,68 @@
 </head>
 <body>
 
-    <!-- Header Navigation -->
     <nav class="navbar">
         <div class="nav-container">
             <div class="brand">
-                <div class="brand-icon"><i class="fa-solid fa-wallet"></i></div>
+                <div class="brand-icon"><i class="fa-solid fa-rotate"></i></div>
                 <div>
                     <div class="brand-title">SCB e-Class Portfolio Tracker</div>
-                    <div class="brand-sub">Direct QR Sync & Cloud Backup</div>
+                    <div class="brand-sub">Real-time Cross-Device Auto-Sync</div>
                 </div>
             </div>
 
-            <!-- Auto-Cloud Sync Controls -->
             <div class="sync-box">
-                <i class="fa-solid fa-key text-gold" style="font-size: 11px;"></i>
+                <i class="fa-solid fa-signal text-gold" style="font-size: 11px;"></i>
                 <span style="font-size: 11px; color: var(--text-muted);">Sync ID:</span>
-                <input type="text" id="syncIdInput" class="sync-input" value="scb-portfolio-2026" onchange="changeSyncId(this.value)" placeholder="รหัสพอร์ต">
-                <div id="cloudStatus" class="sync-status text-green"><i class="fa-solid fa-circle text-green" style="font-size: 8px;"></i> Ready</div>
+                <input type="text" id="syncIdInput" class="sync-input" value="my-scb-port" onchange="changeSyncId(this.value)">
+                <div id="syncStatusTag" class="sync-status text-green"><i class="fa-solid fa-circle" style="font-size: 8px;"></i> Live Syncing</div>
             </div>
 
-            <!-- Toolbar Actions -->
             <div class="nav-actions">
-                <button onclick="fetchCloudData(true)" class="btn btn-dark" title="ดึงข้อมูลล่าสุด"><i class="fa-solid fa-rotate"></i> ดึงข้อมูล</button>
-                <button onclick="openQRModal()" class="btn btn-dark" title="ส่งข้อมูลเข้ามือถือ"><i class="fa-solid fa-qrcode text-gold"></i> QR มือถือ</button>
                 <button onclick="exportJSON()" class="btn btn-dark" title="ส่งออกไฟล์สำรอง"><i class="fa-solid fa-download"></i> Export</button>
                 <button onclick="openModal('importModal')" class="btn btn-dark" title="นำเข้าไฟล์สำรอง"><i class="fa-solid fa-upload"></i> Import</button>
-                <button onclick="openModal('ocrModal')" class="btn btn-ocr"><i class="fa-solid fa-camera"></i> สแกนภาพ/สลิป</button>
+                <button onclick="openModal('ocrModal')" class="btn btn-ocr"><i class="fa-solid fa-camera"></i> สแกนสลิป</button>
                 <button onclick="openFundModal()" class="btn btn-purple"><i class="fa-solid fa-plus"></i> เพิ่มกองทุน</button>
             </div>
         </div>
     </nav>
 
-    <!-- Main Container -->
     <main class="container">
 
-        <!-- Real-Time Market Indices Section -->
         <section class="card market-card">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
                 <div style="font-size: 14px; font-weight: 600; color: var(--blue);"><i class="fa-solid fa-globe"></i> ดัชนีตลาดหุ้นสำคัญ</div>
-                <div style="font-size: 11px; color: var(--text-muted);" id="marketUpdateTime">อัปเดตล่าสุด: พร้อมใช้งาน</div>
+                <div style="font-size: 11px; color: var(--text-muted);">สถานะ: Real-time Cloud Active</div>
             </div>
             <div class="grid-4">
                 <div class="index-box">
                     <div class="index-title">S&P 500 <span>^GSPC</span></div>
-                    <div id="sp500-val" class="index-val">5,050.20</div>
-                    <div id="sp500-change" class="index-change text-green"><i class="fa-solid fa-caret-up"></i> +0.42%</div>
+                    <div class="index-val">5,050.20</div>
+                    <div class="index-change text-green"><i class="fa-solid fa-caret-up"></i> +0.42%</div>
                 </div>
                 <div class="index-box">
                     <div class="index-title">Nasdaq <span>^IXIC</span></div>
-                    <div id="nasdaq-val" class="index-val">15,980.50</div>
-                    <div id="nasdaq-change" class="index-change text-green"><i class="fa-solid fa-caret-up"></i> +0.78%</div>
+                    <div class="index-val">15,980.50</div>
+                    <div class="index-change text-green"><i class="fa-solid fa-caret-up"></i> +0.78%</div>
                 </div>
                 <div class="index-box">
                     <div class="index-title">MSCI ACWI <span>ACWI</span></div>
-                    <div id="acwi-val" class="index-val">108.40</div>
-                    <div id="acwi-change" class="index-change text-green"><i class="fa-solid fa-caret-up"></i> +0.31%</div>
+                    <div class="index-val">108.40</div>
+                    <div class="index-change text-green"><i class="fa-solid fa-caret-up"></i> +0.31%</div>
                 </div>
                 <div class="index-box">
                     <div class="index-title">MSCI AC Asia ex JP <span>AAXJ</span></div>
-                    <div id="aaxj-val" class="index-val">68.15</div>
-                    <div id="aaxj-change" class="index-change text-red"><i class="fa-solid fa-caret-down"></i> -0.25%</div>
+                    <div class="index-val">68.15</div>
+                    <div class="index-change text-red"><i class="fa-solid fa-caret-down"></i> -0.25%</div>
                 </div>
             </div>
         </section>
 
-        <!-- Summary Cards -->
         <div class="grid-4">
             <div class="card">
                 <div class="card-label">มูลค่าพอร์ตรวม</div>
                 <div id="totalValue" class="card-val">฿0.00</div>
-                <div class="card-sub" id="lastSyncTimeText">บันทึกลง Local & Cloud</div>
+                <div class="card-sub" id="cloudSyncInfo">Sync อัตโนมัติข้ามอุปกรณ์</div>
             </div>
             <div class="card">
                 <div class="card-label">กำไร/ขาดทุนสะสมรวม</div>
@@ -192,12 +176,9 @@
             </div>
         </div>
 
-        <!-- Target Allocation & Rebalance Table -->
         <div class="table-card">
             <div class="table-header">
-                <div>
-                    <h3 style="font-size: 15px; color:#fff;"><i class="fa-solid fa-scale-balanced text-blue"></i> ตารางสัดส่วนเป้าหมาย & คำนวณ Rebalance</h3>
-                </div>
+                <h3 style="font-size: 15px; color:#fff;"><i class="fa-solid fa-scale-balanced text-blue"></i> ตารางสัดส่วนเป้าหมาย & คำนวณ Rebalance</h3>
             </div>
             <div class="table-responsive">
                 <table>
@@ -216,12 +197,9 @@
             </div>
         </div>
 
-        <!-- Portfolio Fund Table -->
         <div class="table-card">
             <div class="table-header">
-                <div>
-                    <h3 style="font-size: 15px; color:#fff;"><i class="fa-solid fa-list-check text-purple"></i> รายการกองทุนทั้งหมดในพอร์ต</h3>
-                </div>
+                <h3 style="font-size: 15px; color:#fff;"><i class="fa-solid fa-list-check text-purple"></i> รายการกองทุนทั้งหมดในพอร์ต</h3>
                 <span id="fundCountBadge" class="badge">0 กองทุน</span>
             </div>
             <div class="table-responsive">
@@ -237,7 +215,7 @@
                             <th class="text-right">รายวัน (1D)</th>
                             <th class="text-right">3 เดือน</th>
                             <th class="text-right">YTD</th>
-                            <th class="text-center">จัดการกองทุน</th>
+                            <th class="text-center">จัดการ</th>
                         </tr>
                     </thead>
                     <tbody id="fundTableBody"></tbody>
@@ -247,60 +225,33 @@
 
     </main>
 
-    <!-- Modal 0: QR Code Handover -->
-    <div id="qrModal" class="modal-backdrop hidden">
-        <div class="modal text-center">
-            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 14px;">
-                <h3 style="font-size: 15px; color:#fff;"><i class="fa-solid fa-qrcode text-gold"></i> สแกนเพื่อส่งพอร์ตเข้ามือถือ</h3>
-                <i class="fa-solid fa-xmark" onclick="closeModal('qrModal')" style="cursor:pointer; color: var(--text-muted);"></i>
-            </div>
-            <p style="font-size:12px; color:var(--text-muted); margin-bottom:12px;">ใช้นิ้วแตะหรือใช้กล้องมือถือสแกน พอร์ตจะย้ายเข้ามือถือทันที 100%</p>
-            <div style="background:#fff; padding:12px; border-radius:12px; display:inline-block; margin-bottom:12px;">
-                <img id="qrImage" src="" alt="QR Code" style="width:200px; height:200px; display:block;">
-            </div>
-            <div style="font-size:11px; color:var(--gold); word-break:break-all; background:#0d1117; padding:8px; border-radius:6px; max-height: 80px; overflow-y: auto;" id="shareUrlText"></div>
-            <button onclick="copyShareUrl()" class="btn btn-purple" style="margin-top:12px; width:100%; justify-content:center;"><i class="fa-solid fa-copy"></i> คัดลอก ลิงก์พอร์ตส่งเข้า LINE</button>
-        </div>
-    </div>
-
-    <!-- Modal 1: Image Upload OCR Scan -->
+    <!-- Modal OCR & Fund Inputs -->
     <div id="ocrModal" class="modal-backdrop hidden">
         <div class="modal">
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 14px;">
-                <h3 style="font-size: 15px; color:#fff;"><i class="fa-solid fa-camera text-gold"></i> อัปโหลดภาพถ่าย/สลิป/หน้าจอพอร์ต</h3>
+                <h3 style="font-size: 15px; color:#fff;"><i class="fa-solid fa-camera text-gold"></i> สแกนภาพสลิป/หน้าจอพอร์ต</h3>
                 <i class="fa-solid fa-xmark" onclick="closeModal('ocrModal')" style="cursor:pointer; color: var(--text-muted);"></i>
             </div>
 
             <div class="drop-zone" onclick="document.getElementById('imageFileInput').click()">
                 <i class="fa-solid fa-cloud-arrow-up" style="font-size:32px; color:var(--gold); margin-bottom:8px;"></i>
-                <div style="font-size:13px; font-weight:600; color:#fff;">คลิกเพื่อเลือกรูปภาพ หรือ ลากไฟล์มาวางที่นี่</div>
-                <div style="font-size:11px; color:var(--text-muted); margin-top:4px;">รองรับไฟล์ PNG, JPG, JPEG (สแกนชื่อกองทุนและ NAV)</div>
+                <div style="font-size:13px; font-weight:600; color:#fff;">คลิกเพื่อเลือกรูปภาพ</div>
             </div>
             <input type="file" id="imageFileInput" accept="image/*" style="display:none;" onchange="processOCRImage(this.files[0])">
 
             <div id="ocrStatus" style="margin-top:14px; font-size:12px; display:none;">
-                <div style="display:flex; justify-content:space-between; margin-bottom:4px;">
-                    <span id="ocrStatusText">กำลังอ่านข้อมูลจากภาพ...</span>
-                    <span id="ocrPercent">0%</span>
+                <span id="ocrStatusText">กำลังอ่านข้อมูล...</span>
+                <div style="background:#0d1117; height:8px; border-radius:4px; overflow:hidden; margin-top:4px;">
+                    <div id="ocrProgressBar" style="width:0%; height:100%; background:var(--gold);"></div>
                 </div>
-                <div style="background:#0d1117; height:8px; border-radius:4px; overflow:hidden;">
-                    <div id="ocrProgressBar" style="width:0%; height:100%; background:var(--gold); transition:0.2s;"></div>
-                </div>
-            </div>
-
-            <div id="ocrRawResult" style="margin-top:12px; max-height:120px; overflow-y:auto; font-size:11px; background:#0d1117; padding:8px; border-radius:6px; font-family:monospace; color:var(--text-muted); display:none;"></div>
-
-            <div style="margin-top: 16px; text-align:right;">
-                <button type="button" onclick="closeModal('ocrModal')" class="btn btn-dark">ปิดหน้าต่าง</button>
             </div>
         </div>
     </div>
 
-    <!-- Modal 2: Add/Edit Fund Form -->
     <div id="fundModal" class="modal-backdrop hidden">
         <div class="modal">
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 14px;">
-                <h3 id="modalTitle" style="font-size: 15px; color:#fff;">บันทึกข้อมูลกองทุน</h3>
+                <h3 id="modalTitle" style="font-size: 15px; color:#fff;">บันทึกกองทุน</h3>
                 <i class="fa-solid fa-xmark" onclick="closeModal('fundModal')" style="cursor:pointer; color: var(--text-muted);"></i>
             </div>
             <form onsubmit="handleFormSubmit(event)">
@@ -311,7 +262,7 @@
                 </div>
                 <div class="form-row">
                     <div class="form-group">
-                        <label>NAV ต้นทุนเฉลี่ย *</label>
+                        <label>NAV ต้นทุน *</label>
                         <input type="number" step="0.0001" id="avgNavInput" required class="form-control">
                     </div>
                     <div class="form-group">
@@ -321,204 +272,103 @@
                 </div>
                 <div class="form-row">
                     <div class="form-group">
-                        <label>จำนวนหน่วย (Units) *</label>
+                        <label>จำนวนหน่วย *</label>
                         <input type="number" step="0.0001" id="unitsInput" required class="form-control">
                     </div>
                     <div class="form-group">
-                        <label>สัดส่วนเป้าหมาย (Target %) *</label>
+                        <label>เป้าหมาย (%) *</label>
                         <input type="number" step="0.1" id="targetPctInput" required class="form-control">
                     </div>
                 </div>
-                <div class="form-row">
-                    <div class="form-group">
-                        <label>1D Return (%)</label>
-                        <input type="number" step="0.01" id="dailyPctInput" value="0.20" class="form-control">
-                    </div>
-                    <div class="form-group">
-                        <label>3M Return (%)</label>
-                        <input type="number" step="0.01" id="threeMonthPctInput" value="3.50" class="form-control">
-                    </div>
-                </div>
-                <div class="form-group">
-                    <label>YTD Return (%)</label>
-                    <input type="number" step="0.01" id="ytdPctInput" value="8.00" class="form-control">
-                </div>
                 <div style="display:flex; gap: 10px; margin-top: 16px;">
                     <button type="button" onclick="closeModal('fundModal')" class="btn btn-dark" style="width:50%; justify-content:center;">ยกเลิก</button>
-                    <button type="submit" class="btn btn-purple" style="width:50%; justify-content:center;">บันทึกข้อมูล</button>
+                    <button type="submit" class="btn btn-purple" style="width:50%; justify-content:center;">บันทึก Sync ไปยังทุกเครื่อง</button>
                 </div>
             </form>
         </div>
     </div>
 
-    <!-- Modal 3: Buy/Sell Adjustment Modal -->
-    <div id="unitAdjustModal" class="modal-backdrop hidden">
-        <div class="modal">
-            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 14px;">
-                <h3 id="adjustModalTitle" style="font-size: 15px; color:#fff;">ปรับจำนวนหน่วย</h3>
-                <i class="fa-solid fa-xmark" onclick="closeModal('unitAdjustModal')" style="cursor:pointer; color: var(--text-muted);"></i>
-            </div>
-            <form onsubmit="handleUnitAdjust(event)">
-                <input type="hidden" id="adjustFundId">
-                <input type="hidden" id="adjustType">
-                <div class="form-group">
-                    <label id="adjustLabel">จำนวนหน่วย *</label>
-                    <input type="number" step="0.0001" id="adjustUnitsInput" required class="form-control" placeholder="0.0000">
-                </div>
-                <div style="display:flex; gap: 10px; margin-top: 16px;">
-                    <button type="button" onclick="closeModal('unitAdjustModal')" class="btn btn-dark" style="width: 50%; justify-content: center;">ยกเลิก</button>
-                    <button type="submit" class="btn btn-purple" style="width: 50%; justify-content: center;">ตกลง</button>
-                </div>
-            </form>
-        </div>
-    </div>
-
-    <!-- Modal 4: Import JSON Backup -->
     <div id="importModal" class="modal-backdrop hidden">
         <div class="modal">
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 14px;">
-                <h3 style="font-size: 15px; color:#fff;"><i class="fa-solid fa-upload text-blue"></i> นำเข้าไฟล์สำรองข้อมูล (JSON)</h3>
+                <h3 style="font-size: 15px; color:#fff;">นำเข้าไฟล์ JSON</h3>
                 <i class="fa-solid fa-xmark" onclick="closeModal('importModal')" style="cursor:pointer; color: var(--text-muted);"></i>
             </div>
             <div class="form-group">
-                <label>เลือกไฟล์ JSON สำรองข้อมูล</label>
                 <input type="file" id="jsonFileInput" accept=".json" class="form-control">
             </div>
-            <div style="display:flex; gap: 10px; margin-top: 16px;">
-                <button type="button" onclick="closeModal('importModal')" class="btn btn-dark" style="width: 50%; justify-content: center;">ยกเลิก</button>
-                <button type="button" onclick="importJSON()" class="btn btn-purple" style="width: 50%; justify-content: center;">ยืนยัน Import</button>
-            </div>
+            <button type="button" onclick="importJSON()" class="btn btn-purple" style="width:100%; justify-content:center; margin-top:10px;">ตกลง Import</button>
         </div>
     </div>
 
-    <!-- Application Script Engine -->
     <script>
-        let currentSyncId = localStorage.getItem('scb_sync_id') || 'scb-portfolio-2026';
+        // === [ใส่ค่า Firebase Config ของคุณที่นี่] ===
+        const firebaseConfig = {
+            apiKey: "YOUR_API_KEY",
+            authDomain: "YOUR_PROJECT_ID.firebaseapp.com",
+            databaseURL: "https://YOUR_PROJECT_ID-default-rtdb.asia-southeast1.firebasedatabase.app",
+            projectId: "YOUR_PROJECT_ID",
+            storageBucket: "YOUR_PROJECT_ID.appspot.com",
+            messagingSenderId: "YOUR_SENDER_ID",
+            appId: "YOUR_APP_ID"
+        };
+
+        let db = null;
+        let activeListener = null;
+        let currentSyncId = localStorage.getItem('scb_sync_id') || 'my-scb-port';
 
         let funds = [
-            { id: 'f1', code: 'SCBWORLD(E)', avgNav: 14.2840, currentNav: 14.9683, units: 3150.2834, targetPct: 40, dailyPct: 0.35, threeMonthPct: 4.2, ytdPct: 9.5 },
-            { id: 'f2', code: 'SCBNDQ(E)', avgNav: 16.5126, currentNav: 17.3836, units: 1695.3700, targetPct: 25, dailyPct: -0.12, threeMonthPct: 6.8, ytdPct: 14.2 },
-            { id: 'f3', code: 'SCBS&P500(E)', avgNav: 20.1100, currentNav: 21.4520, units: 1200.0000, targetPct: 35, dailyPct: 0.18, threeMonthPct: 3.1, ytdPct: 8.9 }
+            { id: 'f1', code: 'SCBWORLD(E)', avgNav: 14.4937, currentNav: 14.7848, units: 1407.4060, targetPct: 40, dailyPct: 0.35, threeMonthPct: 4.2, ytdPct: 9.5 },
+            { id: 'f2', code: 'SCBNDQ(E)', avgNav: 16.5126, currentNav: 17.3836, units: 1564.7162, targetPct: 25, dailyPct: -0.12, threeMonthPct: 6.8, ytdPct: 14.2 },
+            { id: 'f3', code: 'SCBS&P500(E)', avgNav: 20.1100, currentNav: 21.4520, units: 657.0133, targetPct: 0, dailyPct: 0.18, threeMonthPct: 3.1, ytdPct: 8.9 },
+            { id: 'f4', code: 'SCBAXJ(E)', avgNav: 8.1200, currentNav: 8.4210, units: 3200.9300, targetPct: 20, dailyPct: 0.25, threeMonthPct: 2.1, ytdPct: 6.3 },
+            { id: 'f5', code: 'SCBSEMI(E)', avgNav: 11.2000, currentNav: 12.3100, units: 2214.8220, targetPct: 15, dailyPct: -0.40, threeMonthPct: 8.5, ytdPct: 18.1 }
         ];
 
-        document.addEventListener('DOMContentLoaded', () => { 
+        document.addEventListener('DOMContentLoaded', () => {
             document.getElementById('syncIdInput').value = currentSyncId;
-            
-            // 1. เช็กว่ามีการส่งข้อมูลพอร์ตผ่าน URL Payload หรือไม่ (Direct Transfer จาก QR Code)
-            const urlParams = new URLSearchParams(window.location.search);
-            const encodedPayload = urlParams.get('data');
-            if (encodedPayload) {
-                try {
-                    const decodedData = JSON.parse(decodeURIComponent(escape(atob(encodedPayload))));
-                    if (Array.isArray(decodedData) && decodedData.length > 0) {
-                        funds = decodedData;
-                        localStorage.setItem('scb_local_store_' + currentSyncId, JSON.stringify(funds));
-                        window.history.replaceState({}, document.title, window.location.pathname);
-                        alert('ซิงค์ข้อมูลพอร์ตลงมือถือสำเร็จ 100%!');
-                    }
-                } catch (e) { console.log('Payload decode error'); }
-            } else {
-                // 2. ถ้าไม่มี URL Payload ให้ดึงจาก LocalStorage เครื่อง
-                const localData = localStorage.getItem('scb_local_store_' + currentSyncId);
-                if (localData) {
-                    try { funds = JSON.parse(localData); } catch(e){}
-                }
-            }
-
-            renderAll();
-            fetchCloudData();
+            initFirebase();
         });
 
-        /* Engine: Direct Sync & QR Code Payload Transfer */
-        function openQRModal() {
-            // แปลงพอร์ตปัจจุบันทั้งหมดเป็น Base64 แล้วฝังใส่ URL
-            const jsonStr = JSON.stringify(funds);
-            const base64Data = btoa(unescape(encodeURIComponent(jsonStr)));
-            const baseUrl = window.location.href.split('?')[0];
-            const fullSyncUrl = `${baseUrl}?data=${base64Data}`;
-
-            document.getElementById('shareUrlText').textContent = fullSyncUrl;
-            document.getElementById('qrImage').src = `https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${encodeURIComponent(fullSyncUrl)}`;
-            openModal('qrModal');
-        }
-
-        function copyShareUrl() {
-            const url = document.getElementById('shareUrlText').textContent;
-            navigator.clipboard.writeText(url);
-            alert('คัดลอกลิงก์เรียบร้อย! ส่งเข้า LINE เปิดในมือถือ พอร์ตจะอัปเดตทันที');
-        }
-
-        /* REST Storage Sync Engine (JSONBlob) */
-        async function fetchCloudData(showAlert = false) {
-            setCloudStatus('syncing');
-            const blobId = localStorage.getItem('scb_blob_id_' + currentSyncId);
-            
-            if (!blobId) {
-                setCloudStatus('synced');
-                if (showAlert) alert('พร้อมใช้งาน (บันทึกข้อมูลในเครื่องแล้ว)');
-                return;
-            }
-
+        function initFirebase() {
             try {
-                const res = await fetch(`https://jsonblob.com/api/jsonBlob/${blobId}`, {
-                    method: 'GET',
-                    headers: { 'Content-Type': 'application/json' }
-                });
-                if (res.ok) {
-                    const data = await res.json();
-                    if (Array.isArray(data)) {
-                        funds = data;
-                        localStorage.setItem('scb_local_store_' + currentSyncId, JSON.stringify(funds));
-                        renderAll();
-                        setCloudStatus('synced');
-                        if (showAlert) alert('ดึงข้อมูลล่าสุดเรียบร้อย!');
-                        return;
-                    }
-                }
-            } catch (err) {
-                setCloudStatus('synced');
-            }
-        }
-
-        async function saveCloudData() {
-            setCloudStatus('syncing');
-            renderAll();
-            localStorage.setItem('scb_local_store_' + currentSyncId, JSON.stringify(funds));
-
-            let blobId = localStorage.getItem('scb_blob_id_' + currentSyncId);
-            try {
-                if (blobId) {
-                    await fetch(`https://jsonblob.com/api/jsonBlob/${blobId}`, {
-                        method: 'PUT',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify(funds)
-                    });
+                if (firebaseConfig.apiKey !== "YOUR_API_KEY") {
+                    firebase.initializeApp(firebaseConfig);
+                    db = firebase.database();
+                    listenToCloudData();
                 } else {
-                    const res = await fetch(`https://jsonblob.com/api/jsonBlob`, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify(funds)
-                    });
-                    const location = res.headers.get('Location');
-                    if (location) {
-                        const newBlobId = location.split('/').pop();
-                        localStorage.setItem('scb_blob_id_' + currentSyncId, newBlobId);
-                    }
+                    document.getElementById('syncStatusTag').innerHTML = `<i class="fa-solid fa-circle text-gold" style="font-size: 8px;"></i> Offline Mode (ไม่ได้ใส่ Firebase Config)`;
+                    renderAll();
                 }
-                setCloudStatus('synced');
             } catch (err) {
-                setCloudStatus('synced');
+                console.error(err);
+                renderAll();
             }
         }
 
-        function setCloudStatus(status) {
-            const el = document.getElementById('cloudStatus');
-            if (status === 'syncing') {
-                el.className = 'sync-status text-gold';
-                el.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> Saving...`;
+        function listenToCloudData() {
+            if (!db) return;
+            const ref = db.ref('ports/' + currentSyncId);
+            
+            if (activeListener) ref.off('value', activeListener);
+
+            activeListener = ref.on('value', (snapshot) => {
+                if (snapshot.exists()) {
+                    funds = snapshot.val();
+                } else {
+                    ref.set(funds); // บันทึกค่าเริ่มต้นเข้า Cloud หากเพิ่งสร้าง Sync ID ใหม่
+                }
+                document.getElementById('syncStatusTag').innerHTML = `<i class="fa-solid fa-circle text-green" style="font-size: 8px;"></i> Live Real-time Connected`;
+                renderAll();
+            });
+        }
+
+        function saveData() {
+            if (db) {
+                db.ref('ports/' + currentSyncId).set(funds);
             } else {
-                el.className = 'sync-status text-green';
-                el.innerHTML = `<i class="fa-solid fa-circle text-green" style="font-size: 8px;"></i> Synced`;
+                localStorage.setItem('scb_store_' + currentSyncId, JSON.stringify(funds));
+                renderAll();
             }
         }
 
@@ -526,14 +376,13 @@
             if (!newId.trim()) return;
             currentSyncId = newId.trim();
             localStorage.setItem('scb_sync_id', currentSyncId);
-            const localData = localStorage.getItem('scb_local_store_' + currentSyncId);
-            if (localData) {
-                try { funds = JSON.parse(localData); renderAll(); } catch(e){}
+            if (db) {
+                listenToCloudData();
+            } else {
+                renderAll();
             }
-            fetchCloudData(true);
         }
 
-        /* Render Dashboard Tables */
         function renderAll() {
             let totalVal = 0, totalCost = 0;
             let dailyProfitSum = 0, ytdProfitSum = 0, threeMonthProfitSum = 0;
@@ -562,44 +411,31 @@
                     <td class="text-right">${f.units.toLocaleString('th-TH', {minimumFractionDigits:2})}</td>
                     <td class="text-right" style="font-weight:600;">฿${formatNum(fVal)}</td>
                     <td class="text-right ${profit >= 0 ? 'text-green' : 'text-red'}">${profit >= 0 ? '+' : ''}฿${formatNum(profit)} (${profitPct.toFixed(2)}%)</td>
-                    <td class="text-right ${f.dailyPct >= 0 ? 'text-green' : 'text-red'}">${f.dailyPct >= 0 ? '+' : ''}${f.dailyPct.toFixed(2)}%</td>
-                    <td class="text-right ${f.threeMonthPct >= 0 ? 'text-green' : 'text-red'}">${f.threeMonthPct >= 0 ? '+' : ''}${f.threeMonthPct.toFixed(2)}%</td>
-                    <td class="text-right ${f.ytdPct >= 0 ? 'text-blue' : 'text-red'}">${f.ytdPct >= 0 ? '+' : ''}${f.ytdPct.toFixed(2)}%</td>
+                    <td class="text-right ${f.dailyPct >= 0 ? 'text-green' : 'text-red'}">${f.dailyPct >= 0 ? '+' : ''}${(f.dailyPct || 0).toFixed(2)}%</td>
+                    <td class="text-right ${(f.threeMonthPct || 0) >= 0 ? 'text-green' : 'text-red'}">${(f.threeMonthPct || 0) >= 0 ? '+' : ''}${(f.threeMonthPct || 0).toFixed(2)}%</td>
+                    <td class="text-right ${(f.ytdPct || 0) >= 0 ? 'text-blue' : 'text-red'}">${(f.ytdPct || 0) >= 0 ? '+' : ''}${(f.ytdPct || 0).toFixed(2)}%</td>
                     <td class="text-center">
-                        <button onclick="openUnitAdjustModal('${f.id}', 'buy')" class="btn btn-dark btn-sm text-green" title="ซื้อเพิ่ม"><i class="fa-solid fa-plus"></i></button>
-                        <button onclick="openUnitAdjustModal('${f.id}', 'sell')" class="btn btn-dark btn-sm text-red" title="ขายออก"><i class="fa-solid fa-minus"></i></button>
-                        <button onclick="openFundModal('${f.id}')" class="btn btn-dark btn-sm text-blue" title="แก้ไข"><i class="fa-solid fa-pen"></i></button>
-                        <button onclick="deleteFund('${f.id}')" class="btn btn-dark btn-sm text-red" title="ลบ"><i class="fa-solid fa-trash"></i></button>
+                        <button onclick="openFundModal('${f.id}')" class="btn btn-dark btn-sm text-blue"><i class="fa-solid fa-pen"></i></button>
+                        <button onclick="deleteFund('${f.id}')" class="btn btn-dark btn-sm text-red"><i class="fa-solid fa-trash"></i></button>
                     </td>
                 `;
                 tableBody.appendChild(tr);
             });
 
-            // Update Cards
             const grandProfit = totalVal - totalCost;
             const grandProfitPct = totalCost > 0 ? (grandProfit / totalCost) * 100 : 0;
             const dailyPctPortfolio = totalVal > 0 ? (dailyProfitSum / totalVal) * 100 : 0;
-            const ytdPctPortfolio = totalVal > 0 ? (ytdProfitSum / totalVal) * 100 : 0;
-            const threeMonthPctPortfolio = totalVal > 0 ? (threeMonthProfitSum / totalVal) * 100 : 0;
 
             document.getElementById('totalValue').textContent = `฿${formatNum(totalVal)}`;
             document.getElementById('totalProfit').textContent = `${grandProfit >= 0 ? '+' : ''}฿${formatNum(grandProfit)}`;
-            document.getElementById('totalProfit').className = `card-val ${grandProfit >= 0 ? 'text-green' : 'text-red'}`;
             document.getElementById('totalProfitPercent').textContent = `${grandProfitPct >= 0 ? '+' : ''}${grandProfitPct.toFixed(2)}% จากต้นทุน`;
-
             document.getElementById('dailyReturn').textContent = `${dailyProfitSum >= 0 ? '+' : ''}฿${formatNum(dailyProfitSum)}`;
-            document.getElementById('dailyReturn').className = `card-val ${dailyProfitSum >= 0 ? 'text-green' : 'text-red'}`;
             document.getElementById('dailyReturnPercent').textContent = `${dailyPctPortfolio >= 0 ? '+' : ''}${dailyPctPortfolio.toFixed(2)}% วันนี้`;
-
-            document.getElementById('ytdReturn').textContent = `${ytdPctPortfolio >= 0 ? '+' : ''}${ytdPctPortfolio.toFixed(2)}% YTD`;
-            document.getElementById('threeMonthReturn').textContent = `3 เดือน: ${threeMonthPctPortfolio >= 0 ? '+' : ''}${threeMonthPctPortfolio.toFixed(2)}%`;
-
             document.getElementById('fundCountBadge').textContent = `${funds.length} กองทุน`;
 
             renderRebalanceTable(totalVal);
         }
 
-        /* Rebalance Table Engine */
         function renderRebalanceTable(totalVal) {
             const tbody = document.getElementById('rebalanceTableBody');
             tbody.innerHTML = '';
@@ -615,7 +451,7 @@
 
                 let actionBadge = '';
                 if (Math.abs(rebalanceAmount) < 100) {
-                    actionBadge = `<span class="badge" style="background:rgba(52,211,153,0.1); color:var(--green); border-color:var(--green);">สมดุลแล้ว</span>`;
+                    actionBadge = `<span class="badge" style="color:var(--green);">สมดุลแล้ว</span>`;
                 } else if (rebalanceAmount > 0) {
                     actionBadge = `<span style="color:var(--green); font-weight:600;"><i class="fa-solid fa-cart-plus"></i> ซื้อเพิ่ม ฿${formatNum(rebalanceAmount)}</span>`;
                 } else {
@@ -626,134 +462,13 @@
                 tr.innerHTML = `
                     <td style="font-weight:600; color:#fff;">${f.code}</td>
                     <td class="text-right">฿${formatNum(fVal)}</td>
-                    <td class="text-right" style="font-weight:600; color:var(--purple-light);">${currentPct.toFixed(1)}%</td>
+                    <td class="text-right text-purple">${currentPct.toFixed(1)}%</td>
                     <td class="text-right text-gold">${targetPct.toFixed(1)}%</td>
                     <td class="text-right ${diffPct >= 0 ? 'text-green' : 'text-red'}">${diffPct >= 0 ? '+' : ''}${diffPct.toFixed(1)}%</td>
                     <td class="text-center">${actionBadge}</td>
                 `;
                 tbody.appendChild(tr);
             });
-        }
-
-        /* OCR Engine */
-        async function processOCRImage(file) {
-            if (!file) return;
-
-            const statusBox = document.getElementById('ocrStatus');
-            const statusText = document.getElementById('ocrStatusText');
-            const percentText = document.getElementById('ocrPercent');
-            const progressBar = document.getElementById('ocrProgressBar');
-            const rawBox = document.getElementById('ocrRawResult');
-
-            statusBox.style.display = 'block';
-            rawBox.style.display = 'block';
-            rawBox.textContent = 'กำลังเริ่มต้นสแกนข้อความด้วย OCR...';
-
-            try {
-                const worker = await Tesseract.createWorker('eng+tha', 1, {
-                    logger: m => {
-                        if (m.status === 'recognizing text') {
-                            const pct = Math.round(m.progress * 100);
-                            statusText.textContent = `กำลังสแกน... (${pct}%)`;
-                            percentText.textContent = `${pct}%`;
-                            progressBar.style.width = `${pct}%`;
-                        }
-                    }
-                });
-
-                const ret = await worker.recognize(file);
-                await worker.terminate();
-
-                const text = ret.data.text;
-                rawBox.textContent = "ข้อความที่อ่านได้:\n" + text;
-
-                parseOCRText(text);
-            } catch (err) { alert('OCR Error: ' + err.message); }
-        }
-
-        function parseOCRText(text) {
-            const lines = text.split('\n');
-            let count = 0;
-
-            lines.forEach(line => {
-                const match = line.match(/(SCB[A-Za-z0-9\&\-\(\)]+)/i);
-                if (match) {
-                    const code = match[1].toUpperCase();
-                    const nums = line.match(/\d+\.\d+/g);
-                    if (nums && nums.length >= 1) {
-                        const parsedNav = parseFloat(nums[0]);
-                        const parsedUnits = nums.length >= 2 ? parseFloat(nums[1]) : null;
-
-                        const existing = funds.find(f => f.code === code);
-                        if (existing) {
-                            existing.currentNav = parsedNav;
-                            if (parsedUnits) existing.units = parsedUnits;
-                        } else {
-                            funds.push({ id: 'f_' + Date.now() + Math.random(), code, avgNav: parsedNav, currentNav: parsedNav, units: parsedUnits || 1000, targetPct: 20, dailyPct: 0.1, threeMonthPct: 2.5, ytdPct: 5.0 });
-                        }
-                        count++;
-                    }
-                }
-            });
-
-            if (count > 0) {
-                saveCloudData();
-                alert(`สแกนและอัปเดตกองทุนสำเร็จ ${count} รายการ!`);
-                closeModal('ocrModal');
-            } else {
-                alert('ไม่พบชื่อกองทุน SCB ในภาพ กรุณาใช้ภาพที่มีชื่อกองทุนชัดเจน เช่น SCBWORLD(E)');
-            }
-        }
-
-        /* Backup Engine */
-        function exportJSON() {
-            const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(funds, null, 2));
-            const downloadAnchor = document.createElement('a');
-            downloadAnchor.setAttribute("href", dataStr);
-            downloadAnchor.setAttribute("download", `SCB_Portfolio_${currentSyncId}.json`);
-            document.body.appendChild(downloadAnchor);
-            downloadAnchor.click();
-            downloadAnchor.remove();
-        }
-
-        function importJSON() {
-            const fileInput = document.getElementById('jsonFileInput');
-            if (!fileInput.files.length) { alert('กรุณาเลือกไฟล์ JSON'); return; }
-
-            const reader = new FileReader();
-            reader.onload = function(e) {
-                try {
-                    const importedData = JSON.parse(e.target.result);
-                    if (Array.isArray(importedData)) {
-                        funds = importedData;
-                        saveCloudData();
-                        alert('นำเข้าข้อมูลสำเร็จ!');
-                        closeModal('importModal');
-                    } else throw new Error();
-                } catch (err) { alert('รูปแบบไฟล์ JSON ไม่ถูกต้อง'); }
-            };
-            reader.readAsText(fileInput.files[0]);
-        }
-
-        /* Form Handlers */
-        function openFundModal(id = null) {
-            if (id) {
-                const f = funds.find(item => item.id === id);
-                document.getElementById('editFundId').value = f.id;
-                document.getElementById('fundCodeInput').value = f.code;
-                document.getElementById('avgNavInput').value = f.avgNav;
-                document.getElementById('currentNavInput').value = f.currentNav;
-                document.getElementById('unitsInput').value = f.units;
-                document.getElementById('targetPctInput').value = f.targetPct || 0;
-            } else {
-                document.getElementById('editFundId').value = '';
-                document.getElementById('fundCodeInput').value = '';
-                document.getElementById('avgNavInput').value = '';
-                document.getElementById('currentNavInput').value = '';
-                document.getElementById('unitsInput').value = '';
-                document.getElementById('targetPctInput').value = 25;
-            }
-            openModal('fundModal');
         }
 
         function handleFormSubmit(e) {
@@ -769,40 +484,96 @@
                 const index = funds.findIndex(f => f.id === id);
                 funds[index] = { ...funds[index], code, avgNav, currentNav, units, targetPct };
             } else {
-                funds.push({ id: 'f_' + Date.now(), code, avgNav, currentNav, units, targetPct, dailyPct: 0.1, threeMonthPct: 3.0, ytdPct: 7.0 });
+                funds.push({ id: 'f_' + Date.now(), code, avgNav, currentNav, units, targetPct });
             }
-            saveCloudData();
+            saveData();
             closeModal('fundModal');
-        }
-
-        function openUnitAdjustModal(id, type) {
-            document.getElementById('adjustFundId').value = id;
-            document.getElementById('adjustType').value = type;
-            document.getElementById('adjustUnitsInput').value = '';
-            document.getElementById('adjustModalTitle').textContent = type === 'buy' ? 'เพิ่มหน่วยลงทุน (ซื้อ)' : 'ลดหน่วยลงทุน (ขาย)';
-            openModal('unitAdjustModal');
-        }
-
-        function handleUnitAdjust(e) {
-            e.preventDefault();
-            const id = document.getElementById('adjustFundId').value;
-            const type = document.getElementById('adjustType').value;
-            const adjustUnits = parseFloat(document.getElementById('adjustUnitsInput').value);
-
-            const fund = funds.find(f => f.id === id);
-            if (fund) {
-                if (type === 'buy') fund.units += adjustUnits;
-                else fund.units = Math.max(0, fund.units - adjustUnits);
-                saveCloudData();
-            }
-            closeModal('unitAdjustModal');
         }
 
         function deleteFund(id) {
             if (confirm('ยืนยันลบกองทุนนี้?')) {
                 funds = funds.filter(f => f.id !== id);
-                saveCloudData();
+                saveData();
             }
+        }
+
+        async function processOCRImage(file) {
+            if (!file) return;
+            const statusBox = document.getElementById('ocrStatus');
+            statusBox.style.display = 'block';
+
+            try {
+                const worker = await Tesseract.createWorker('eng+tha');
+                const ret = await worker.recognize(file);
+                await worker.terminate();
+
+                const text = ret.data.text;
+                const lines = text.split('\n');
+                let count = 0;
+
+                lines.forEach(line => {
+                    const match = line.match(/(SCB[A-Za-z0-9\&\-\(\)]+)/i);
+                    if (match) {
+                        const code = match[1].toUpperCase();
+                        const nums = line.match(/\d+\.\d+/g);
+                        if (nums && nums.length >= 1) {
+                            const parsedNav = parseFloat(nums[0]);
+                            const existing = funds.find(f => f.code === code);
+                            if (existing) { existing.currentNav = parsedNav; }
+                            else { funds.push({ id: 'f_' + Date.now(), code, avgNav: parsedNav, currentNav: parsedNav, units: 1000, targetPct: 20 }); }
+                            count++;
+                        }
+                    }
+                });
+
+                saveData();
+                alert(`สแกนสำเร็จ ${count} รายการ!`);
+                closeModal('ocrModal');
+            } catch (err) { alert('OCR Error: ' + err.message); }
+        }
+
+        function exportJSON() {
+            const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(funds, null, 2));
+            const downloadAnchor = document.createElement('a');
+            downloadAnchor.setAttribute("href", dataStr);
+            downloadAnchor.setAttribute("download", `SCB_Portfolio_${currentSyncId}.json`);
+            document.body.appendChild(downloadAnchor);
+            downloadAnchor.click();
+            downloadAnchor.remove();
+        }
+
+        function importJSON() {
+            const fileInput = document.getElementById('jsonFileInput');
+            if (!fileInput.files.length) return;
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    funds = JSON.parse(e.target.result);
+                    saveData();
+                    closeModal('importModal');
+                } catch (err) { alert('รูปแบบไฟล์ไม่ถูกต้อง'); }
+            };
+            reader.readAsText(fileInput.files[0]);
+        }
+
+        function openFundModal(id = null) {
+            if (id) {
+                const f = funds.find(item => item.id === id);
+                document.getElementById('editFundId').value = f.id;
+                document.getElementById('fundCodeInput').value = f.code;
+                document.getElementById('avgNavInput').value = f.avgNav;
+                document.getElementById('currentNavInput').value = f.currentNav;
+                document.getElementById('unitsInput').value = f.units;
+                document.getElementById('targetPctInput').value = f.targetPct || 0;
+            } else {
+                document.getElementById('editFundId').value = '';
+                document.getElementById('fundCodeInput').value = '';
+                document.getElementById('avgNavInput').value = '';
+                document.getElementById('currentNavInput').value = '';
+                document.getElementById('unitsInput').value = '';
+                document.getElementById('targetPctInput').value = 20;
+            }
+            openModal('fundModal');
         }
 
         function openModal(id) { document.getElementById(id).classList.remove('hidden'); }
