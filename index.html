@@ -396,8 +396,8 @@
         }
 
         function renderAll() {
-            let totalVal = 0, totalCost = 0;
-            let dailyProfitSum = 0, ytdProfitSum = 0, threeMonthProfitSum = 0;
+            let totalVal = 0, totalCost = 0, totalValYesterday = 0;
+            let ytdProfitSum = 0, threeMonthProfitSum = 0;
 
             const tableBody = document.getElementById('fundTableBody');
             tableBody.innerHTML = '';
@@ -408,7 +408,11 @@
                 const profit = fVal - fCost;
                 const profitPct = fCost > 0 ? (profit / fCost) * 100 : 0;
 
-                dailyProfitSum += fVal * ((f.dailyPct || 0) / 100);
+                // คำนวณมูลค่าเมื่อวานของกองทุนนี้
+                const dailyPct = f.dailyPct || 0;
+                const fValYesterday = fVal / (1 + (dailyPct / 100));
+                totalValYesterday += fValYesterday;
+
                 ytdProfitSum += fVal * ((f.ytdPct || 0) / 100);
                 threeMonthProfitSum += fVal * ((f.threeMonthPct || 0) / 100);
 
@@ -423,7 +427,7 @@
                     <td class="text-right">${f.units.toLocaleString('th-TH', {minimumFractionDigits:2})}</td>
                     <td class="text-right" style="font-weight:600;">฿${formatNum(fVal)}</td>
                     <td class="text-right ${profit >= 0 ? 'text-green' : 'text-red'}">${profit >= 0 ? '+' : ''}฿${formatNum(profit)} (${profitPct.toFixed(2)}%)</td>
-                    <td class="text-right ${f.dailyPct >= 0 ? 'text-green' : 'text-red'}">${f.dailyPct >= 0 ? '+' : ''}${(f.dailyPct || 0).toFixed(2)}%</td>
+                    <td class="text-right ${dailyPct >= 0 ? 'text-green' : 'text-red'}">${dailyPct >= 0 ? '+' : ''}${dailyPct.toFixed(2)}%</td>
                     <td class="text-right ${(f.threeMonthPct || 0) >= 0 ? 'text-green' : 'text-red'}">${(f.threeMonthPct || 0) >= 0 ? '+' : ''}${(f.threeMonthPct || 0).toFixed(2)}%</td>
                     <td class="text-right ${(f.ytdPct || 0) >= 0 ? 'text-blue' : 'text-red'}">${(f.ytdPct || 0) >= 0 ? '+' : ''}${(f.ytdPct || 0).toFixed(2)}%</td>
                     <td class="text-center">
@@ -434,21 +438,26 @@
                 tableBody.appendChild(tr);
             });
 
+            // คำนวณผลตอบแทนรวม
             const grandProfit = totalVal - totalCost;
             const grandProfitPct = totalCost > 0 ? (grandProfit / totalCost) * 100 : 0;
-            const dailyPctPortfolio = totalVal > 0 ? (dailyProfitSum / totalVal) * 100 : 0;
             
-            // คำนวณ % ผลตอบแทนถัวเฉลี่ยถ่วงน้ำหนักตามขนาดกองทุน
+            // คำนวณกำไร/ขาดทุนเทียบกับเมื่อวาน
+            const dailyProfitSum = totalVal - totalValYesterday;
+            const dailyPctPortfolio = totalValYesterday > 0 ? (dailyProfitSum / totalValYesterday) * 100 : 0;
+
             const ytdPctPortfolio = totalVal > 0 ? (ytdProfitSum / totalVal) * 100 : 0;
             const threeMonthPctPortfolio = totalVal > 0 ? (threeMonthProfitSum / totalVal) * 100 : 0;
 
+            // อัปเดตตัวเลขลง Card บนหน้าเว็บ
             document.getElementById('totalValue').textContent = `฿${formatNum(totalVal)}`;
             document.getElementById('totalProfit').textContent = `${grandProfit >= 0 ? '+' : ''}฿${formatNum(grandProfit)}`;
             document.getElementById('totalProfitPercent').textContent = `${grandProfitPct >= 0 ? '+' : ''}${grandProfitPct.toFixed(2)}% จากต้นทุน`;
-            document.getElementById('dailyReturn').textContent = `${dailyProfitSum >= 0 ? '+' : ''}฿${formatNum(dailyProfitSum)}`;
-            document.getElementById('dailyReturnPercent').textContent = `${dailyPctPortfolio >= 0 ? '+' : ''}${dailyPctPortfolio.toFixed(2)}% วันนี้`;
             
-            // อัปเดตแสดงผล YTD & 3 เดือน บนหน้าจอ
+            // แสดงผลกำไร/ขาดทุนวันนี้เทียบเมื่อวาน
+            document.getElementById('dailyReturn').textContent = `${dailyProfitSum >= 0 ? '+' : ''}฿${formatNum(dailyProfitSum)}`;
+            document.getElementById('dailyReturnPercent').textContent = `${dailyPctPortfolio >= 0 ? '+' : ''}${dailyPctPortfolio.toFixed(2)}% เทียบเมื่อวาน`;
+            
             document.getElementById('ytdReturn').textContent = `${ytdPctPortfolio >= 0 ? '+' : ''}${ytdPctPortfolio.toFixed(2)}% YTD`;
             document.getElementById('threeMonthReturn').textContent = `3 เดือน: ${threeMonthPctPortfolio >= 0 ? '+' : ''}${threeMonthPctPortfolio.toFixed(2)}%`;
 
