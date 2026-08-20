@@ -425,12 +425,21 @@
             const grandProfit = totalVal - totalCost;
             const grandProfitPct = totalCost > 0 ? (grandProfit / totalCost) * 100 : 0;
             const dailyPctPortfolio = totalVal > 0 ? (dailyProfitSum / totalVal) * 100 : 0;
+            
+            // คำนวณ % ผลตอบแทนถัวเฉลี่ยถ่วงน้ำหนักตามขนาดกองทุน
+            const ytdPctPortfolio = totalVal > 0 ? (ytdProfitSum / totalVal) * 100 : 0;
+            const threeMonthPctPortfolio = totalVal > 0 ? (threeMonthProfitSum / totalVal) * 100 : 0;
 
             document.getElementById('totalValue').textContent = `฿${formatNum(totalVal)}`;
             document.getElementById('totalProfit').textContent = `${grandProfit >= 0 ? '+' : ''}฿${formatNum(grandProfit)}`;
             document.getElementById('totalProfitPercent').textContent = `${grandProfitPct >= 0 ? '+' : ''}${grandProfitPct.toFixed(2)}% จากต้นทุน`;
             document.getElementById('dailyReturn').textContent = `${dailyProfitSum >= 0 ? '+' : ''}฿${formatNum(dailyProfitSum)}`;
             document.getElementById('dailyReturnPercent').textContent = `${dailyPctPortfolio >= 0 ? '+' : ''}${dailyPctPortfolio.toFixed(2)}% วันนี้`;
+            
+            // อัปเดตแสดงผล YTD & 3 เดือน บนหน้าจอ
+            document.getElementById('ytdReturn').textContent = `${ytdPctPortfolio >= 0 ? '+' : ''}${ytdPctPortfolio.toFixed(2)}% YTD`;
+            document.getElementById('threeMonthReturn').textContent = `3 เดือน: ${threeMonthPctPortfolio >= 0 ? '+' : ''}${threeMonthPctPortfolio.toFixed(2)}%`;
+
             document.getElementById('fundCountBadge').textContent = `${funds.length} กองทุน`;
 
             renderRebalanceTable(totalVal);
