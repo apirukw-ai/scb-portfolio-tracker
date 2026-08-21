@@ -1,5 +1,4 @@
 import re
-import json
 import requests
 import urllib.parse
 from bs4 import BeautifulSoup
@@ -10,18 +9,12 @@ HEADERS = {
 }
 
 def get_code_variations(code):
-    """ แปลงสัญลักษณ์พิเศษทุกรูปแบบเพื่อครอบคลุมชื่อใน Finnomena / WealthX """
     clean = code.strip()
     variations = [clean]
-    
-    # 1. ถอดวงเล็บออกโดยตรง เช่น SCBS&P500(E) -> SCBS&P500E
     no_bracket = clean.replace('(', '').replace(')', '')
     variations.append(no_bracket)
-    
-    # 2. เปลี่ยน (E) เป็น -E เช่น SCBS&P500-E
     variations.append(clean.replace('(E)', '-E'))
     
-    # 3. จัดการสัญลักษณ์พิเศษ &
     base_vars = list(variations)
     for v in base_vars:
         variations.append(v.replace('&', '%26'))
@@ -31,7 +24,6 @@ def get_code_variations(code):
     return list(dict.fromkeys(variations))
 
 def get_nav_wealthx(code):
-    """ ดึง NAV จาก WealthX """
     for symbol in get_code_variations(code):
         try:
             url = f"https://www.wealthx.co/funds/{symbol}"
@@ -50,7 +42,6 @@ def get_nav_wealthx(code):
     return None
 
 def get_nav_finnomena_page(code):
-    """ ดึง NAV จาก Finnomena """
     for symbol in get_code_variations(code):
         try:
             url = f"https://www.finnomena.com/fund/{symbol}"
@@ -67,15 +58,35 @@ def fetch_nav(code):
     nav = get_nav_wealthx(code)
     if nav:
         return nav, "WealthX"
-    
     nav = get_nav_finnomena_page(code)
     if nav:
         return nav, "Finnomena"
-
     return None, None
 
+def update_html_nav(content, code, nav):
+    """ ค้นหาและแทนที่ currentNav ภายใน Object ของกองทุนนั้นๆ อย่างปลอดภัย """
+    escaped_code = re.escape(code)
+    
+    # กรณี code อยู่ก่อน currentNav ภายใน Object เดียวกัน
+    pattern1 = re.compile(
+        r"(\{[^{}]*?code\s*:\s*['\"]" + escaped_code + r"['\"][^{}]*?currentNav\s*:\s*)([0-9.]+)",
+        re.MULTILINE
+    )
+    if pattern1.search(content):
+        return pattern1.sub(r"\g<1>" + str(nav), content), True
+
+    # กรณี currentNav อยู่ก่อน code ภายใน Object เดียวกัน
+    pattern2 = re.compile(
+        r"(\{[^{}]*?currentNav\s*:\s*)([0-9.]+)([^{}]*?code\s*:\s*['\"]" + escaped_code + r"['\"][^{}]*?\})",
+        re.MULTILINE
+    )
+    if pattern2.search(content):
+        return pattern2.sub(r"\g<1>" + str(nav) + r"\g<3>", content), True
+
+    return content, False
+
 def main():
-    print("🚀 เริ่มต้นระบบดึงข้อมูล NAV อัตโนมัติ (WealthX + Finnomena)...")
+    print("🚀 เริ่มต้นระบบดึงข้อมูล NAV อัตโนมัติ...")
 
     try:
         with open('index.html', 'r', encoding='utf-8') as f:
@@ -102,29 +113,19 @@ def main():
         nav, source = fetch_nav(code)
 
         if nav is not None:
-            print(f"  ✅ {code}: NAV ปัจจุบัน = {nav} (ดึงจาก {source})")
-            
-            pattern = re.compile(
-                r"(code\s*:\s*['\"]" + re.escape(code) + r"['\"].*?currentNav\s*:\s*)([0-9.]+)",
-                re.DOTALL
-            )
-            if pattern.search(new_content):
-                new_content = pattern.sub(r"\g<1>" + str(nav), new_content)
+            new_content, success = update_html_nav(new_content, code, nav)
+            if success:
+                print(f"  ✅ {code}: NAV = {nav} (อัปเดตลง HTML แล้ว) [จาก {source}]")
                 updated_count += 1
             else:
-                pattern_alt = re.compile(
-                    r"(currentNav\s*:\s*)([0-9.]+)(.*?code\s*:\s*['\"]" + re.escape(code) + r"['\"])"
-                )
-                if pattern_alt.search(new_content):
-                    new_content = pattern_alt.sub(r"\g<1>" + str(nav) + r"\g<3>", new_content)
-                    updated_count += 1
+                print(f"  ⚠️ {code}: NAV = {nav} แต่จับคู่ตำแหน่งใน HTML ไม่เจอ")
         else:
             print(f"  ❌ {code}: ไม่พบข้อมูล NAV")
 
     if updated_count > 0 and new_content != content:
         with open('index.html', 'w', encoding='utf-8') as f:
             f.write(new_content)
-        print(f"🎉 บันทึกข้อมูล NAV ใหม่ลง index.html เรียบร้อย ({updated_count} กองทุน)")
+        print(f"🎉 บันทึกข้อมูล NAV ใหม่ลง index.html เรียบร้อย ({updated_count} รายการ)")
     else:
         print("⚠️ ไม่มีข้อมูล NAV ที่อัปเดตเพิ่ม")
 
