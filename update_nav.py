@@ -1,61 +1,60 @@
 import re
 import json
 import requests
-import urllib.parse
+from bs4 import BeautifulSoup
 
 HEADERS = {
     'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
-    'Accept': 'application/json, text/plain, */*'
+    'Accept-Language': 'th-TH,th;q=0.9,en-US;q=0.8,en;q=0.7'
 }
 
-def fetch_nav_finnomena(fund_code):
-    """ ดึง NAV จาก Finnomena API โดยแปลงสัญลักษณ์พิเศษ (&, (), -) ให้ถูกต้อง """
-    clean_code = fund_code.strip()
-    
-    variations = [
-        clean_code,
-        clean_code.replace('(E)', '-E'),
-        clean_code.replace('-E', '(E)')
-    ]
-    
-    for symbol in variations:
-        try:
-            # Encode ตัวอักษรพิเศษ เช่น SCBS&P500(E) -> SCBS%26P500%28E%29
-            encoded = urllib.parse.quote(symbol, safe='')
-            url = f"https://api.finnomena.com/fund/public/v1/fund/nav/latest?fund_symbol={encoded}"
-            res = requests.get(url, headers=HEADERS, timeout=8)
-            if res.status_code == 200:
-                data = res.json()
-                if data.get('status') and data.get('data'):
-                    nav = data['data'].get('nav') or data['data'].get('value')
-                    if nav:
-                        return float(nav)
-        except Exception:
-            pass
-    return None
-
-def fetch_nav_finnomena_search(fund_code):
-    """ ค้นหากองทุนผ่าน Search API ในกรณีที่ชื่อตรงๆ ไม่เจอ """
+def get_nav_wealthx(code):
+    """ ดึง NAV จาก WealthX """
     try:
-        search_key = fund_code.replace('(E)', '').replace('-E', '').replace('&', ' ').strip()
-        encoded_key = urllib.parse.quote(search_key)
-        url = f"https://api.finnomena.com/fund/public/v1/fund?search={encoded_key}"
-        res = requests.get(url, headers=HEADERS, timeout=8)
+        url = f"https://www.wealthx.co/funds/{code}"
+        res = requests.get(url, headers=HEADERS, timeout=10)
         if res.status_code == 200:
-            data = res.json()
-            funds = data.get('data', [])
-            for f in funds:
-                symbol = f.get('fund_symbol', '')
-                if fund_code.upper() in symbol.upper() or symbol.upper() in fund_code.upper():
-                    nav = f.get('nav') or f.get('value')
-                    if nav:
-                        return float(nav)
+            soup = BeautifulSoup(res.text, 'html.parser')
+            text = soup.get_text()
+            # ค้นหาตำแหน่งราคา NAV
+            match = re.search(r'มูลค่าหน่วยลงทุน\s*\(NAV\)\s*(\d+\.\d{4})', text)
+            if match:
+                return float(match.group(1))
+            matches = re.findall(r'(\d+\.\d{4})', text)
+            if matches:
+                return float(matches[0])
     except Exception:
         pass
     return None
 
+def get_nav_finnomena_page(code):
+    """ ดึง NAV จากหน้า HTML ของ Finnomena """
+    try:
+        url = f"https://www.finnomena.com/fund/{code}"
+        res = requests.get(url, headers=HEADERS, timeout=10)
+        if res.status_code == 200:
+            match = re.search(r'"nav"\s*:\s*([0-9.]+)', res.text)
+            if match:
+                return float(match.group(1))
+    except Exception:
+        pass
+    return None
+
+def fetch_nav(code):
+    # 1. ลองดึงจาก WealthX ก่อน
+    nav = get_nav_wealthx(code)
+    if nav:
+        return nav, "WealthX"
+    
+    # 2. ถ้าไม่ได้ ให้ลองดึงจาก Finnomena
+    nav = get_nav_finnomena_page(code)
+    if nav:
+        return nav, "Finnomena"
+
+    return None, None
+
 def main():
-    print("🚀 เริ่มต้นระบบดึงข้อมูล NAV อัตโนมัติ (รองรับ SCB Class E)...")
+    print("🚀 เริ่มต้นระบบดึงข้อมูล NAV อัตโนมัติ (WealthX + Finnomena)...")
 
     try:
         with open('index.html', 'r', encoding='utf-8') as f:
@@ -79,16 +78,10 @@ def main():
 
     for code in fund_codes:
         print(f"🔍 กำลังดึง NAV ของ: {code} ...")
-        
-        # 1. ดึงด้วยวิธี Encode Symbol
-        nav = fetch_nav_finnomena(code)
-        
-        # 2. สำรองด้วย Search API
-        if nav is None:
-            nav = fetch_nav_finnomena_search(code)
+        nav, source = fetch_nav(code)
 
         if nav is not None:
-            print(f"  ✅ {code}: NAV ปัจจุบัน = {nav}")
+            print(f"  ✅ {code}: NAV ปัจจุบัน = {nav} (ดึงจาก {source})")
             
             pattern = re.compile(
                 r"(code\s*:\s*['\"]" + re.escape(code) + r"['\"].*?currentNav\s*:\s*)([0-9.]+)",
