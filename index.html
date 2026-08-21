@@ -141,27 +141,26 @@
                 <div style="font-size: 14px; font-weight: 600; color: var(--blue);"><i class="fa-solid fa-globe"></i> ดัชนีตลาดหุ้นสำคัญ</div>
                 <div style="font-size: 11px; color: var(--text-muted);">สถานะ: Real-time Cloud Active</div>
             </div>
-            <div class="grid-4">
-                <div class="index-box">
-                    <div class="index-title">S&P 500 <span>^GSPC</span></div>
-                    <div class="index-val">5,050.20</div>
-                    <div class="index-change text-green"><i class="fa-solid fa-caret-up"></i> +0.42%</div>
-                </div>
-                <div class="index-box">
-                    <div class="index-title">Nasdaq <span>^IXIC</span></div>
-                    <div class="index-val">15,980.50</div>
-                    <div class="index-change text-green"><i class="fa-solid fa-caret-up"></i> +0.78%</div>
-                </div>
-                <div class="index-box">
-                    <div class="index-title">MSCI ACWI <span>ACWI</span></div>
-                    <div class="index-val">108.40</div>
-                    <div class="index-change text-green"><i class="fa-solid fa-caret-up"></i> +0.31%</div>
-                </div>
-                <div class="index-box">
-                    <div class="index-title">MSCI AC Asia ex JP <span>AAXJ</span></div>
-                    <div class="index-val">68.15</div>
-                    <div class="index-change text-red"><i class="fa-solid fa-caret-down"></i> -0.25%</div>
-                </div>
+            <!-- TradingView Widget BEGIN -->
+<div class="tradingview-widget-container" style="width: 100%;">
+  <div class="tradingview-widget-container__widget"></div>
+  <script type="text/javascript" src="https://s3.tradingview.com/external-embedding/embed-widget-ticker-tape.js" async>
+  {
+  "symbols": [
+    { "proName": "FOREXCOM:SPXUSD", "title": "S&P 500" },
+    { "proName": "FOREXCOM:NSXUSD", "title": "Nasdaq 100" },
+    { "proName": "GLOBALPRIME:ACWI", "title": "MSCI ACWI" },
+    { "proName": "FX_IDC:USDTHB", "title": "USD/THB" }
+  ],
+  "showSymbolLogo": true,
+  "isTransparent": true,
+  "displayMode": "adaptive",
+  "colorTheme": "dark",
+  "locale": "th_TH"
+  }
+  </script>
+</div>
+<!-- TradingView Widget END -->
             </div>
         </section>
 
