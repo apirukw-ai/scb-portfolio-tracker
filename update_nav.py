@@ -10,25 +10,25 @@ HEADERS = {
 }
 
 def get_code_variations(code):
-    """ แปลงสัญลักษณ์พิเศษ เช่น & หรือ (E) ให้เป็นรูปแบบที่เว็บรองรับ """
+    """ แปลงสัญลักษณ์พิเศษทุกรูปแบบเพื่อครอบคลุมชื่อใน Finnomena / WealthX """
     clean = code.strip()
     variations = [clean]
     
-    # กรณีมีเครื่องหมาย & เช่น SCBS&P500(E)
-    if '&' in clean:
-        variations.append(clean.replace('&', '%26'))
-        variations.append(clean.replace('&', ''))
-        variations.append(clean.replace('&', 'AND'))
-        variations.append(clean.replace('&', 'and'))
+    # 1. ถอดวงเล็บออกโดยตรง เช่น SCBS&P500(E) -> SCBS&P500E
+    no_bracket = clean.replace('(', '').replace(')', '')
+    variations.append(no_bracket)
+    
+    # 2. เปลี่ยน (E) เป็น -E เช่น SCBS&P500-E
+    variations.append(clean.replace('(E)', '-E'))
+    
+    # 3. จัดการสัญลักษณ์พิเศษ &
+    base_vars = list(variations)
+    for v in base_vars:
+        variations.append(v.replace('&', '%26'))
+        variations.append(v.replace('&', ''))
+        variations.append(v.replace('&', '-'))
         
-    extra_vars = []
-    for v in variations:
-        if v.endswith('(E)'):
-            extra_vars.append(v[:-3] + '-E')
-        elif v.endswith('-E'):
-            extra_vars.append(v[:-2] + '(E)')
-            
-    return list(dict.fromkeys(variations + extra_vars))
+    return list(dict.fromkeys(variations))
 
 def get_nav_wealthx(code):
     """ ดึง NAV จาก WealthX """
@@ -53,8 +53,7 @@ def get_nav_finnomena_page(code):
     """ ดึง NAV จาก Finnomena """
     for symbol in get_code_variations(code):
         try:
-            encoded_symbol = urllib.parse.quote(symbol, safe='%()')
-            url = f"https://www.finnomena.com/fund/{encoded_symbol}"
+            url = f"https://www.finnomena.com/fund/{symbol}"
             res = requests.get(url, headers=HEADERS, timeout=8)
             if res.status_code == 200:
                 match = re.search(r'"nav"\s*:\s*([0-9.]+)', res.text)
