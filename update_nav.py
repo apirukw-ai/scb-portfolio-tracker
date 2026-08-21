@@ -1,6 +1,7 @@
 import re
 import json
 import requests
+import urllib.parse
 from bs4 import BeautifulSoup
 
 HEADERS = {
@@ -8,45 +9,66 @@ HEADERS = {
     'Accept-Language': 'th-TH,th;q=0.9,en-US;q=0.8,en;q=0.7'
 }
 
+def get_code_variations(code):
+    """ แปลงสัญลักษณ์พิเศษ เช่น & หรือ (E) ให้เป็นรูปแบบที่เว็บรองรับ """
+    clean = code.strip()
+    variations = [clean]
+    
+    # กรณีมีเครื่องหมาย & เช่น SCBS&P500(E)
+    if '&' in clean:
+        variations.append(clean.replace('&', '%26'))
+        variations.append(clean.replace('&', ''))
+        variations.append(clean.replace('&', 'AND'))
+        variations.append(clean.replace('&', 'and'))
+        
+    extra_vars = []
+    for v in variations:
+        if v.endswith('(E)'):
+            extra_vars.append(v[:-3] + '-E')
+        elif v.endswith('-E'):
+            extra_vars.append(v[:-2] + '(E)')
+            
+    return list(dict.fromkeys(variations + extra_vars))
+
 def get_nav_wealthx(code):
     """ ดึง NAV จาก WealthX """
-    try:
-        url = f"https://www.wealthx.co/funds/{code}"
-        res = requests.get(url, headers=HEADERS, timeout=10)
-        if res.status_code == 200:
-            soup = BeautifulSoup(res.text, 'html.parser')
-            text = soup.get_text()
-            # ค้นหาตำแหน่งราคา NAV
-            match = re.search(r'มูลค่าหน่วยลงทุน\s*\(NAV\)\s*(\d+\.\d{4})', text)
-            if match:
-                return float(match.group(1))
-            matches = re.findall(r'(\d+\.\d{4})', text)
-            if matches:
-                return float(matches[0])
-    except Exception:
-        pass
+    for symbol in get_code_variations(code):
+        try:
+            url = f"https://www.wealthx.co/funds/{symbol}"
+            res = requests.get(url, headers=HEADERS, timeout=8)
+            if res.status_code == 200:
+                soup = BeautifulSoup(res.text, 'html.parser')
+                text = soup.get_text()
+                match = re.search(r'มูลค่าหน่วยลงทุน\s*\(NAV\)\s*(\d+\.\d{4})', text)
+                if match:
+                    return float(match.group(1))
+                matches = re.findall(r'(\d+\.\d{4})', text)
+                if matches:
+                    return float(matches[0])
+        except Exception:
+            pass
     return None
 
 def get_nav_finnomena_page(code):
-    """ ดึง NAV จากหน้า HTML ของ Finnomena """
-    try:
-        url = f"https://www.finnomena.com/fund/{code}"
-        res = requests.get(url, headers=HEADERS, timeout=10)
-        if res.status_code == 200:
-            match = re.search(r'"nav"\s*:\s*([0-9.]+)', res.text)
-            if match:
-                return float(match.group(1))
-    except Exception:
-        pass
+    """ ดึง NAV จาก Finnomena """
+    for symbol in get_code_variations(code):
+        try:
+            encoded_symbol = urllib.parse.quote(symbol, safe='%()')
+            url = f"https://www.finnomena.com/fund/{encoded_symbol}"
+            res = requests.get(url, headers=HEADERS, timeout=8)
+            if res.status_code == 200:
+                match = re.search(r'"nav"\s*:\s*([0-9.]+)', res.text)
+                if match:
+                    return float(match.group(1))
+        except Exception:
+            pass
     return None
 
 def fetch_nav(code):
-    # 1. ลองดึงจาก WealthX ก่อน
     nav = get_nav_wealthx(code)
     if nav:
         return nav, "WealthX"
     
-    # 2. ถ้าไม่ได้ ให้ลองดึงจาก Finnomena
     nav = get_nav_finnomena_page(code)
     if nav:
         return nav, "Finnomena"
