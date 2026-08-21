@@ -358,22 +358,29 @@
             }
         }
 
-        function listenToCloudData() {
-            if (!db) return;
-            const ref = db.ref('ports/' + currentSyncId);
-            
-            if (activeListener) ref.off('value', activeListener);
+function listenToCloudData() {
+    if (!db) return;
+    const ref = db.ref('ports/' + currentSyncId);
 
-            activeListener = ref.on('value', (snapshot) => {
-                if (snapshot.exists()) {
-                    funds = snapshot.val();
-                } else {
-                    ref.set(funds); // บันทึกค่าเริ่มต้นเข้า Cloud หากเพิ่งสร้าง Sync ID ใหม่
-                }
-                document.getElementById('syncStatusTag').innerHTML = `<i class="fa-solid fa-circle text-green" style="font-size: 8px;"></i> Live Real-time Connected`;
-                renderAll();
+    if (activeListener) ref.off('value', activeListener);
+
+    activeListener = ref.on('value', (snapshot) => {
+        if (snapshot.exists()) {
+            funds = snapshot.val();
+            
+            // ซิงก์ราคา NAV ล่าสุดจาก masterFunds เข้าพอร์ตเสมอ
+            funds.forEach(item => {
+                const master = masterFunds.find(f => f.code === item.code);
+                if (master && master.currentNav) item.currentNav = master.currentNav;
             });
+
+        } else {
+            ref.set(funds);
         }
+        document.getElementById('syncStatusTag').innerHTML = `<i class="fa-solid fa-circle text-green" style="font-size: 8px;"></i> Live Real-time Connected`;
+        renderAll();
+    });
+}
 
         function saveData() {
             if (db) {
