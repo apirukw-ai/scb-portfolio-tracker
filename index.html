@@ -366,18 +366,26 @@ function listenToCloudData() {
 
     activeListener = ref.on('value', (snapshot) => {
         if (snapshot.exists()) {
-            funds = snapshot.val();
+            const cloudFunds = snapshot.val();
             
-            // ซิงก์ราคา NAV ล่าสุดจาก masterFunds เข้าพอร์ตเสมอ
-            funds.forEach(item => {
-                const master = masterFunds.find(f => f.code === item.code);
-                if (master && master.currentNav) item.currentNav = master.currentNav;
-            });
-
+            // ดึงค่า NAV ล่าสุดจากไฟล์ HTML มาอัปเดตใส่พอร์ตเสมอ
+            if (Array.isArray(cloudFunds)) {
+                cloudFunds.forEach(item => {
+                    const local = funds.find(f => f.code === item.code);
+                    if (local && local.currentNav) {
+                        item.currentNav = local.currentNav;
+                    }
+                });
+                funds = cloudFunds;
+            }
         } else {
             ref.set(funds);
         }
-        document.getElementById('syncStatusTag').innerHTML = `<i class="fa-solid fa-circle text-green" style="font-size: 8px;"></i> Live Real-time Connected`;
+        
+        const statusTag = document.getElementById('syncStatusTag');
+        if (statusTag) {
+            statusTag.innerHTML = `<i class="fa-solid fa-circle text-green" style="font-size: 8px;"></i> Live Real-time Connected`;
+        }
         renderAll();
     });
 }
