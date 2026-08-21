@@ -6,6 +6,10 @@ on:
     - cron: '30 13 * * 1-5'
   workflow_dispatch: # ปุ่มกดรันด้วยมือเพื่อทดสอบ
 
+# ให้สิทธิ์ GitHub Action บันทึกไฟล์กลับลง Repository
+permissions:
+  contents: write
+
 jobs:
   update-nav:
     runs-on: ubuntu-latest
@@ -25,3 +29,12 @@ jobs:
 
       - name: Run NAV Update Script
         run: python update_nav.py
+
+      # 📌 ขั้นตอนสำคัญ: บันทึกและ Push ข้อมูลใหม่กลับเข้าเว็บ
+      - name: Commit and Push changes
+        run: |
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+          git add .
+          git commit -m "Auto-update NAVs [skip ci]" || exit 0
+          git push
