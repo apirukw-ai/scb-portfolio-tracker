@@ -1,74 +1,98 @@
+import re
+import json
 import requests
 from bs4 import BeautifulSoup
-import re
 
-# URL Firebase Realtime Database ของคุณ
-FIREBASE_DB_URL = "https://scb-e-class-default-rtdb.asia-southeast1.firebasedatabase.app"
-SYNC_ID = "my-scb-port"
+# ตั้งค่า Header ป้องกันเว็บกองทุนบล็อก GitHub Action
+HEADERS = {
+    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36'
+}
 
-def fetch_scbam_navs():
-    nav_data = {}
+def fetch_nav_mfc(fund_code):
+    """ ดึงราคา NAV ล่าสุดของกองทุน MFC """
     try:
-        url = "https://www.scbam.com/th/fund/nav"
-        headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"}
-        response = requests.get(url, headers=headers, timeout=15)
-        
-        if response.status_code == 200:
-            soup = BeautifulSoup(response.text, 'html.parser')
-            rows = soup.find_all('tr')
-            for row in rows:
-                cols = row.find_all('td')
-                if len(cols) >= 3:
-                    fund_code = cols[0].get_text(strip=True).upper()
-                    clean_code = re.sub(r'[^A-Z0-9]', '', fund_code)
-                    nav_str = cols[1].get_text(strip=True).replace(',', '')
-                    change_str = cols[2].get_text(strip=True).replace(',', '').replace('%', '').replace('+', '')
-                    
-                    try:
-                        nav_val = float(nav_str)
-                        change_val = float(change_str) if change_str else 0.0
-                        nav_data[clean_code] = {'nav': nav_val, 'change_pct': change_val}
-                    except ValueError:
-                        continue
+        # ดึงจากหน้าค้นหากองทุน MFC
+        url = f"https://www.mfcfund.com/Web/FundSearch/FundSearchDetail?fund_code={fund_code}"
+        res = requests.get(url, headers=HEADERS, timeout=10)
+        if res.status_code == 200:
+            soup = BeautifulSoup(res.text, 'html.parser')
+            # ค้นหาตัวเลข NAV (ทศนิยม 4 ตำแหน่ง)
+            text = soup.get_text()
+            matches = re.findall(r'\b\d+\.\d{4}\b', text)
+            if matches:
+                return float(matches[0])
     except Exception as e:
-        print(f"Error fetching SCBAM NAVs: {e}")
-    return nav_data
+        print(f"  ⚠️ ดึง {fund_code} จาก MFC ไม่สำเร็จ: {e}")
+    return None
 
 def main():
-    print("Starting Automated NAV Update...")
-    fb_url = f"{FIREBASE_DB_URL.rstrip('/')}/ports/{SYNC_ID}.json"
-    
-    # 1. ดึงข้อมูลพอร์ตปัจจุบันจาก Firebase
-    res = requests.get(fb_url)
-    if res.status_code != 200 or not res.json():
-        print("Failed to fetch data from Firebase.")
+    print("🚀 เริ่มต้นระบบดึงข้อมูล NAV อัตโนมัติ...")
+
+    # 1. อ่านไฟล์ index.html
+    try:
+        with open('index.html', 'r', encoding='utf-8') as f:
+            content = f.read()
+        print("📖 อ่านไฟล์ index.html เรียบร้อย")
+    except Exception as e:
+        print(f"❌ อ่านไฟล์ index.html ไม่สำเร็จ: {e}")
         return
 
-    funds = res.json()
-    scbam_navs = fetch_scbam_navs()
-    updated = False
+    # 2. ค้นหาบล็อกข้อมูล funds ในไฟล์
+    pattern = r'let funds = (\[.*?\]);'
+    match = re.search(pattern, content, re.DOTALL)
+    
+    if not match:
+        pattern = r'const funds = (\[.*?\]);'
+        match = re.search(pattern, content, re.DOTALL)
 
-    # 2. จับคู่ชื่อกองทุนและอัปเดต NAV + % รายวัน
-    for fund in funds:
-        code_raw = fund.get('code', '').upper()
-        code_clean = re.sub(r'[^A-Z0-9]', '', code_raw)
-        
-        if code_clean in scbam_navs:
-            new_nav = scbam_navs[code_clean]['nav']
-            new_pct = scbam_navs[code_clean]['change_pct']
+    if not match:
+        print("❌ ไม่พบตัวแปร funds ในไฟล์ index.html (กรุณาเช็กชื่อตัวแปร)")
+        return
+
+    funds_json_str = match.group(1)
+    
+    # 3. แปลงเป็น Python List/Dict
+    try:
+        # ปรับปรุงรูปแบบ JS Object ให้เป็น JSON ที่ถูกต้องก่อน parse
+        clean_json = re.sub(r'(\w+):', r'"\1":', funds_json_str)
+        clean_json = re.sub(r"'([^']*)'", r'"\1"', clean_json)
+        funds_list = json.loads(clean_json)
+        print(f"📊 พบรายการกองทุนทั้งหมด {len(funds_list)} รายการ")
+    except Exception as e:
+        print(f"⚠️ ไม่สามารถแปลงข้อมูล funds เป็น JSON ได้ สคริปต์จะใช้วิธีค้นหาและแทนที่ด้วย Regex")
+        funds_list = []
+
+    updated_count = 0
+
+    # 4. วนลูปดึง NAV และอัปเดตข้อมูล
+    if funds_list:
+        for f in funds_list:
+            code = f.get('code')
+            if not code:
+                continue
             
-            print(f"Updated {code_raw}: NAV {fund.get('currentNav')} -> {new_nav} | Change: {new_pct}%")
-            fund['currentNav'] = new_nav
-            fund['dailyPct'] = new_pct
-            updated = True
+            nav = fetch_nav_mfc(code)
+            if nav:
+                print(f"  ✅ {code}: NAV ปัจจุบัน = {nav}")
+                # เก็บค่า prevNav เดิมไว้ แล้วอัปเดต currentNav ใหม่
+                if f.get('currentNav') and f['currentNav'] != nav:
+                    f['prevNav'] = f['currentNav']
+                f['currentNav'] = nav
+                updated_count += 1
+            else:
+                print(f"  ❌ {code}: ไม่พบข้อมูล NAV")
 
-    # 3. ส่งข้อมูล NAV ล่าสุดกลับไปยัง Firebase
-    if updated:
-        put_res = requests.put(fb_url, json=funds)
-        if put_res.status_code == 200:
-            print("Successfully updated Firebase Realtime Database!")
+        if updated_count > 0:
+            new_funds_str = f"let funds = {json.dumps(funds_list, ensure_ascii=False, indent=4)};"
+            content = re.sub(r'(let|const)\s+funds\s*=\s*\[.*?\];', new_funds_str, content, flags=re.DOTALL)
+            
+            with open('index.html', 'w', encoding='utf-8') as f:
+                f.write(content)
+            print(f"🎉 บันทึกข้อมูล NAV ใหม่ลง index.html เรียบร้อย ({updated_count} กองทุน)")
         else:
-            print(f"Firebase Update Error: {put_res.status_code}")
+            print("⚠️ ไม่มีข้อมูล NAV ที่อัปเดตเพิ่ม")
+    else:
+        print("⚠️ ข้ามกระบวนการอัปเดต เนื่องจากไม่สามารถดึงข้อมูลพอร์ตได้")
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     main()
