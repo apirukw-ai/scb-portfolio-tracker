@@ -1,50 +1,32 @@
 import re
 import json
 import requests
+import urllib.parse
 
 HEADERS = {
     'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
-    'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8'
+    'Accept': 'application/json, text/plain, */*'
 }
 
-def fetch_from_scbam_official(fund_code):
-    """ ดึงราคา NAV ตรงจากหน้าตารางราคากองทุน SCBAM (scbam.com/th/fund/nav) """
+def fetch_nav_finnomena(fund_code):
+    """ ดึง NAV จาก Finnomena API โดยแปลงสัญลักษณ์พิเศษ (&, (), -) ให้ถูกต้อง """
     clean_code = fund_code.strip()
-    # แปลงชื่อรูปแบบต่างๆ เช่น SCBWORLD(E) หรือ SCBWORLD-E
-    base_code = clean_code.replace('(E)', '').replace('-E', '').strip()
     
-    url = "https://www.scbam.com/th/fund/nav"
-    try:
-        res = requests.get(url, headers=HEADERS, timeout=10)
-        if res.status_code == 200:
-            html = res.text
-            # ค้นหารูปแบบชื่อกองทุนตามด้วยราคา NAV ทศนิยม 4 ตำแหน่ง
-            patterns = [
-                rf"{re.escape(clean_code)}.*?(\d+\.\d{{4}})",
-                rf"{re.escape(base_code)}.*?\(E\).*?(\d+\.\d{{4}})",
-                rf"{re.escape(base_code)}.*?-E.*?(\d+\.\d{{4}})"
-            ]
-            for pattern in patterns:
-                match = re.search(pattern, html, re.DOTALL | re.IGNORECASE)
-                if match:
-                    return float(match.group(1))
-    except Exception as e:
-        print(f"  ⚠️ ดึงจาก SCBAM NAV Table ไม่สำเร็จ: {e}")
-        
-    return None
-
-def fetch_from_finnomena(fund_code):
-    """ ดึงราคา NAV จาก Finnomena API (สำรอง) """
-    clean = fund_code.strip()
-    variations = [clean, clean.replace('(E)', '-E'), clean.replace('-E', '(E)')]
+    variations = [
+        clean_code,
+        clean_code.replace('(E)', '-E'),
+        clean_code.replace('-E', '(E)')
+    ]
     
     for symbol in variations:
         try:
-            url = f"https://api.finnomena.com/fund/public/v1/fund/nav/latest?fund_symbol={symbol}"
-            res = requests.get(url, headers=HEADERS, timeout=5)
+            # Encode ตัวอักษรพิเศษ เช่น SCBS&P500(E) -> SCBS%26P500%28E%29
+            encoded = urllib.parse.quote(symbol, safe='')
+            url = f"https://api.finnomena.com/fund/public/v1/fund/nav/latest?fund_symbol={encoded}"
+            res = requests.get(url, headers=HEADERS, timeout=8)
             if res.status_code == 200:
                 data = res.json()
-                if 'data' in data and data['data']:
+                if data.get('status') and data.get('data'):
                     nav = data['data'].get('nav') or data['data'].get('value')
                     if nav:
                         return float(nav)
@@ -52,8 +34,28 @@ def fetch_from_finnomena(fund_code):
             pass
     return None
 
+def fetch_nav_finnomena_search(fund_code):
+    """ ค้นหากองทุนผ่าน Search API ในกรณีที่ชื่อตรงๆ ไม่เจอ """
+    try:
+        search_key = fund_code.replace('(E)', '').replace('-E', '').replace('&', ' ').strip()
+        encoded_key = urllib.parse.quote(search_key)
+        url = f"https://api.finnomena.com/fund/public/v1/fund?search={encoded_key}"
+        res = requests.get(url, headers=HEADERS, timeout=8)
+        if res.status_code == 200:
+            data = res.json()
+            funds = data.get('data', [])
+            for f in funds:
+                symbol = f.get('fund_symbol', '')
+                if fund_code.upper() in symbol.upper() or symbol.upper() in fund_code.upper():
+                    nav = f.get('nav') or f.get('value')
+                    if nav:
+                        return float(nav)
+    except Exception:
+        pass
+    return None
+
 def main():
-    print("🚀 เริ่มต้นระบบดึงข้อมูล NAV อัตโนมัติ (SCBAM + Finnomena)...")
+    print("🚀 เริ่มต้นระบบดึงข้อมูล NAV อัตโนมัติ (รองรับ SCB Class E)...")
 
     try:
         with open('index.html', 'r', encoding='utf-8') as f:
@@ -63,7 +65,6 @@ def main():
         print(f"❌ อ่านไฟล์ index.html ไม่สำเร็จ: {e}")
         return
 
-    # ค้นหารหัสกองทุนทั้งหมดใน index.html
     fund_codes = re.findall(r"code\s*:\s*['\"]([^'\"]+)['\"]", content)
     fund_codes = list(dict.fromkeys(fund_codes))
 
@@ -79,17 +80,16 @@ def main():
     for code in fund_codes:
         print(f"🔍 กำลังดึง NAV ของ: {code} ...")
         
-        # 1. ดึงจาก SCBAM Official NAV Table
-        nav = fetch_from_scbam_official(code)
+        # 1. ดึงด้วยวิธี Encode Symbol
+        nav = fetch_nav_finnomena(code)
         
-        # 2. ถ้าไม่พบ ให้ดึงจาก Finnomena เป็น Backup
+        # 2. สำรองด้วย Search API
         if nav is None:
-            nav = fetch_from_finnomena(code)
+            nav = fetch_nav_finnomena_search(code)
 
         if nav is not None:
             print(f"  ✅ {code}: NAV ปัจจุบัน = {nav}")
             
-            # อัปเดตค่า currentNav ใน index.html
             pattern = re.compile(
                 r"(code\s*:\s*['\"]" + re.escape(code) + r"['\"].*?currentNav\s*:\s*)([0-9.]+)",
                 re.DOTALL
@@ -105,7 +105,7 @@ def main():
                     new_content = pattern_alt.sub(r"\g<1>" + str(nav) + r"\g<3>", new_content)
                     updated_count += 1
         else:
-            print(f"  ❌ {code}: ไม่พบข้อมูล NAV จากทุกช่องทาง")
+            print(f"  ❌ {code}: ไม่พบข้อมูล NAV")
 
     if updated_count > 0 and new_content != content:
         with open('index.html', 'w', encoding='utf-8') as f:
