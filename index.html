@@ -282,13 +282,12 @@
                 <table>
                     <thead>
                         <tr>
-                            <th>ชื่อกองทุน</th>
-                            <th class="text-right">มูลค่าปัจจุบัน</th>
-                            <th class="text-right">สัดส่วนปัจจุบัน (%)</th>
-                            <th class="text-right">สัดส่วนเป้าหมาย (%)</th>
-                            <th class="text-right">ส่วนต่าง (%)</th>
-                            
-                        </tr>
+  <th>ชื่อกองทุน</th>
+  <th class="text-center">มูลค่าปัจจุบัน</th>
+  <th class="text-center">สัดส่วนปัจจุบัน (%)</th>
+  <th class="text-center">สัดส่วนเป้าหมาย (%)</th>
+  <th class="text-center">ส่วนต่าง (%)</th>
+</tr>
                     </thead>
                     <tbody id="rebalanceTableBody"></tbody>
                 </table>
@@ -580,10 +579,10 @@ funds.forEach(f => {
       const tr = document.createElement('tr');
       tr.innerHTML = `
         <td style="font-weight:600; color:#fff;">${f.code}</td>
-        <td class="text-right">฿${formatNum(fVal)}</td>
-        <td class="text-right text-purple">${currentPct.toFixed(1)}%</td>
-        <td class="text-right text-gold">${targetPct.toFixed(1)}%</td>
-        <td class="text-right ${diffPct >= 0 ? 'text-green' : 'text-red'}">${diffPct >= 0 ? '+' : ''}${diffPct.toFixed(1)}%</td>
+        <td class="text-center">฿${formatNum(fVal)}</td>
+        <td class="text-center text-purple">${currentPct.toFixed(1)}%</td>
+        <td class="text-center text-gold">${targetPct.toFixed(1)}%</td>
+        <td class="text-center ${diffPct >= 0 ? 'text-green' : 'text-red'}">${diffPct >= 0 ? '+' : ''}${diffPct.toFixed(1)}%</td>
       `;
       tbody.appendChild(tr);
     });
