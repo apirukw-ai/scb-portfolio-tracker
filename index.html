@@ -258,7 +258,7 @@
                 <div class="card-sub" id="cloudSyncInfo">Sync อัตโนมัติข้ามอุปกรณ์</div>
             </div>
             <div class="card">
-                <div class="card-label">กำไร/ขาดทุนสะสมรวม</div>
+                <div class="card-label">กำไรสะสมรวม</div>
                 <div id="totalProfit" class="card-val text-green">+฿0.00</div>
                 <div id="totalProfitPercent" class="card-sub text-green">+0.00%</div>
             </div>
@@ -287,7 +287,7 @@
                             <th class="text-right">สัดส่วนปัจจุบัน (%)</th>
                             <th class="text-right">สัดส่วนเป้าหมาย (%)</th>
                             <th class="text-right">ส่วนต่าง (%)</th>
-                            <th class="text-center">คำแนะนำ Rebalance</th>
+                            
                         </tr>
                     </thead>
                     <tbody id="rebalanceTableBody"></tbody>
@@ -309,7 +309,7 @@
                             <th class="text-right">NAV ปัจจุบัน</th>
                             <th class="text-right">จำนวนหน่วย</th>
                             <th class="text-right">มูลค่าปัจจุบัน</th>
-                            <th class="text-right">กำไร/ขาดทุนรวม</th>
+                            <th class="text-right">กำไรรวม</th>
                             <th class="text-right">รายวัน (1D)</th>
                             <th class="text-right">3 เดือน</th>
                             <th class="text-right">YTD</th>
@@ -571,35 +571,22 @@ function listenToCloudData() {
             const tbody = document.getElementById('rebalanceTableBody');
             tbody.innerHTML = '';
 
-            funds.forEach(f => {
-                const fVal = f.units * f.currentNav;
-                const currentPct = totalVal > 0 ? (fVal / totalVal) * 100 : 0;
-                const targetPct = f.targetPct || 0;
-                const diffPct = currentPct - targetPct;
+funds.forEach(f => {
+      const fVal = f.units * f.currentNav;
+      const currentPct = totalVal > 0 ? (fVal / totalVal) * 100 : 0;
+      const targetPct = f.targetPct || 0;
+      const diffPct = currentPct - targetPct;
 
-                const targetVal = totalVal * (targetPct / 100);
-                const rebalanceAmount = targetVal - fVal;
-
-                let actionBadge = '';
-                if (Math.abs(rebalanceAmount) < 100) {
-                    actionBadge = `<span class="badge" style="color:var(--green);">สมดุลแล้ว</span>`;
-                } else if (rebalanceAmount > 0) {
-                    actionBadge = `<span style="color:var(--green); font-weight:600;"><i class="fa-solid fa-cart-plus"></i> ซื้อเพิ่ม ฿${formatNum(rebalanceAmount)}</span>`;
-                } else {
-                    actionBadge = `<span style="color:var(--red); font-weight:600;"><i class="fa-solid fa-circle-minus"></i> ขายออก ฿${formatNum(Math.abs(rebalanceAmount))}</span>`;
-                }
-
-                const tr = document.createElement('tr');
-                tr.innerHTML = `
-                    <td style="font-weight:600; color:#fff;">${f.code}</td>
-                    <td class="text-right">฿${formatNum(fVal)}</td>
-                    <td class="text-right text-purple">${currentPct.toFixed(1)}%</td>
-                    <td class="text-right text-gold">${targetPct.toFixed(1)}%</td>
-                    <td class="text-right ${diffPct >= 0 ? 'text-green' : 'text-red'}">${diffPct >= 0 ? '+' : ''}${diffPct.toFixed(1)}%</td>
-                    <td class="text-center">${actionBadge}</td>
-                `;
-                tbody.appendChild(tr);
-            });
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td style="font-weight:600; color:#fff;">${f.code}</td>
+        <td class="text-right">฿${formatNum(fVal)}</td>
+        <td class="text-right text-purple">${currentPct.toFixed(1)}%</td>
+        <td class="text-right text-gold">${targetPct.toFixed(1)}%</td>
+        <td class="text-right ${diffPct >= 0 ? 'text-green' : 'text-red'}">${diffPct >= 0 ? '+' : ''}${diffPct.toFixed(1)}%</td>
+      `;
+      tbody.appendChild(tr);
+    });
         }
 
         function handleFormSubmit(e) {
