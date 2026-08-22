@@ -268,9 +268,11 @@
                 <div id="dailyReturnPercent" class="card-sub text-green">+0.00% วันนี้</div>
             </div>
             <div class="card">
-                <div class="card-label">ผลตอบแทน YTD & 3 เดือน</div>
-                <div id="ytdReturn" class="card-val text-blue">+0.00% YTD</div>
-                <div id="threeMonthReturn" class="card-sub">3 เดือน: +0.00%</div>
+                <div class="card">
+  <div class="card-label">ผลงานกองทุนย้อนหลัง</div>
+  <div id="ytdReturn" class="card-val text-blue">+0.00% ตั้งแต่ต้นปี</div>
+  <div id="threeMonthReturn" class="card-sub">3 เดือนย้อนหลัง: +0.00%</div>
+</div>
             </div>
         </div>
 
@@ -577,10 +579,10 @@ function renderAll() {
 
   // 4. ผลตอบแทน YTD & 3 เดือน
   if (document.getElementById('ytdReturn')) {
-    document.getElementById('ytdReturn').textContent = `${totalYtdPct >= 0 ? '+' : ''}${totalYtdPct.toFixed(2)}% YTD`;
+    document.getElementById('ytdReturn').textContent = `${totalYtdPct >= 0 ? '+' : ''}${totalYtdPct.toFixed(2)}% ตั้งแต่ต้นปี`;
   }
   if (document.getElementById('threeMonthReturn')) {
-    document.getElementById('threeMonthReturn').textContent = `3 เดือน: ${total3mPct >= 0 ? '+' : ''}${total3mPct.toFixed(2)}%`;
+    document.getElementById('threeMonthReturn').textContent = `3 เดือนย้อนหลัง: ${total3mPct >= 0 ? '+' : ''}${total3mPct.toFixed(2)}%`;
   }
 
   if (document.getElementById('fundCountBadge')) {
