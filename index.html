@@ -308,8 +308,8 @@
     <th class="text-center">NAV ปัจจุบัน</th>
     <th class="text-center">จำนวนหน่วย</th>
     <th class="text-center">มูลค่าปัจจุบัน</th>
-    <th class="text-center">กำไร/ขาดทุนรวม</th>
-    <th class="text-center">เปลี่ยนแปลง (1D)</th>
+    <th class="text-center">กำไรรวม</th>
+    <th class="text-center">กำไรวันนี้</th>
     <th class="text-center">3 เดือน</th>
     <th class="text-center">YTD</th>
     <th class="text-center">จัดการ</th>
@@ -503,41 +503,37 @@ function listenToCloudData() {
             tableBody.innerHTML = '';
 
             funds.forEach(f => {
-                const fVal = f.units * f.currentNav;
-                const fCost = f.units * f.avgNav;
-                const profit = fVal - fCost;
-                const profitPct = fCost > 0 ? (profit / fCost) * 100 : 0;
+      const fVal = f.units * f.currentNav;
+      const profit = fVal - (f.units * f.avgNav);
+      const profitPct = f.avgNav > 0 ? ((f.currentNav - f.avgNav) / f.avgNav) * 100 : 0;
+      
+      // คำนวณกำไรวันนี้เป็นเงินบาท (฿) จาก % 1D
+      const dailyPct = f.dailyPct || 0;
+      const dailyProfit = fVal - (fVal / (1 + (dailyPct / 100)));
 
-                // คำนวณมูลค่าเมื่อวานของกองทุนนี้
-                const dailyPct = f.dailyPct || 0;
-                const fValYesterday = fVal / (1 + (dailyPct / 100));
-                totalValYesterday += fValYesterday;
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td class="text-center" style="font-weight:600; color:#fff;">${f.code}</td>
+        <td class="text-center">฿${f.avgNav.toFixed(4)}</td>
+        <td class="text-center text-gold">฿${f.currentNav.toFixed(4)}</td>
+        <td class="text-center">${f.units.toLocaleString('th-TH', {minimumFractionDigits:2})}</td>
+        <td class="text-center" style="font-weight:600;">฿${formatNum(fVal)}</td>
+        <td class="text-center ${profit >= 0 ? 'text-green' : 'text-red'}">${profit >= 0 ? '+' : ''}฿${formatNum(profit)} (${profitPct.toFixed(2)}%)</td>
+        
+        <!-- แสดงกำไรวันนี้ ทั้งเงินบาท และ % -->
+        <td class="text-center ${dailyPct >= 0 ? 'text-green' : 'text-red'}">
+          ${dailyProfit >= 0 ? '+' : ''}฿${formatNum(dailyProfit)} (${dailyPct >= 0 ? '+' : ''}${dailyPct.toFixed(2)}%)
+        </td>
 
-                ytdProfitSum += fVal * ((f.ytdPct || 0) / 100);
-                threeMonthProfitSum += fVal * ((f.threeMonthPct || 0) / 100);
-
-                totalVal += fVal;
-                totalCost += fCost;
-
-                const tr = document.createElement('tr');
-                tr.innerHTML = `
-                    <td class="text-center" style="font-weight:600; color:#fff;">${f.code}</td>
-          <td class="text-center">฿${f.avgNav.toFixed(4)}</td>
-          <td class="text-center text-gold">฿${f.currentNav.toFixed(4)}</td>
-          <td class="text-center">${f.units.toLocaleString('th-TH', {minimumFractionDigits:2})}</td>
-          <td class="text-center" style="font-weight:600;">฿${formatNum(fVal)}</td>
-          <td class="text-center ${profit >= 0 ? 'text-green' : 'text-red'}">${profit >= 0 ? '+' : ''}฿${formatNum(profit)} (${profitPct.toFixed(2)}%)</td>
-          <td class="text-center ${dailyPct >= 0 ? 'text-green' : 'text-red'}">${dailyPct >= 0 ? '+' : ''}${dailyPct.toFixed(2)}%</td>
-          <td class="text-center ${(f.threeMonthPct || 0) >= 0 ? 'text-green' : 'text-red'}">${(f.threeMonthPct || 0) >= 0 ? '+' : ''}${(f.threeMonthPct || 0).toFixed(2)}%</td>
-          <td class="text-center ${(f.ytdPct || 0) >= 0 ? 'text-blue' : 'text-red'}">${(f.ytdPct || 0) >= 0 ? '+' : ''}${(f.ytdPct || 0).toFixed(2)}%</td>
-          <td class="text-center">
-            <button onclick="openFundModal('${f.id}')" class="btn btn-dark btn-sm text-blue"><i class="fa-solid fa-pen"></i></button>
-            <button onclick="deleteFund('${f.id}')" class="btn btn-dark btn-sm text-red"><i class="fa-solid fa-trash"></i></button>
-          </td>
-                `;
-                tableBody.appendChild(tr);
-            });
-
+        <td class="text-center ${(f.threeMonthPct || 0) >= 0 ? 'text-green' : 'text-red'}">${(f.threeMonthPct || 0) >= 0 ? '+' : ''}${(f.threeMonthPct || 0).toFixed(2)}%</td>
+        <td class="text-center ${(f.ytdPct || 0) >= 0 ? 'text-blue' : 'text-red'}">${(f.ytdPct || 0) >= 0 ? '+' : ''}${(f.ytdPct || 0).toFixed(2)}%</td>
+        <td class="text-center">
+          <button onclick="openFundModal('${f.id}')" class="btn btn-dark btn-sm text-blue"><i class="fa-solid fa-pen"></i></button>
+          <button onclick="deleteFund('${f.id}')" class="btn btn-dark btn-sm text-red"><i class="fa-solid fa-trash"></i></button>
+        </td>
+      `;
+      tableBody.appendChild(tr);
+    });
             // คำนวณผลตอบแทนรวม
             const grandProfit = totalVal - totalCost;
             const grandProfitPct = totalCost > 0 ? (grandProfit / totalCost) * 100 : 0;
