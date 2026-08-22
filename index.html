@@ -146,24 +146,108 @@
                 <div style="font-size: 14px; font-weight: 600; color: var(--blue);"><i class="fa-solid fa-globe"></i> ดัชนีตลาดหุ้นสำคัญ</div>
                 <div style="font-size: 11px; color: var(--text-muted);">สถานะ: Real-time Cloud Active</div>
             </div>
-<!-- TradingView Tickers Widget (Real-time & แก้ตลาดเป็น NASDAQ) -->
-<div class="tradingview-widget-container" style="width: 100%;">
-  <div class="tradingview-widget-container__widget"></div>
-  <script type="text/javascript" src="https://s3.tradingview.com/external-embedding/embed-widget-tickers.js" async>
-  {
-  "symbols": [
-    { "proName": "FOREXCOM:SPXUSD", "title": "S&P 500" },
-    { "proName": "FOREXCOM:NSXUSD", "title": "Nasdaq 100" },
-    { "proName": "NASDAQ:ACWI", "title": "MSCI ACWI" },
-    { "proName": "NASDAQ:AAXJ", "title": "MSCI Asia ex JP" },
-    { "proName": "FX_IDC:USDTHB", "title": "USD/THB" }
-  ],
-  "isTransparent": true,
-  "showSymbolLogo": true,
-  "colorTheme": "dark",
-  "locale": "th_TH"
+<!-- ดัชนีตลาดหุ้นสำคัญ (2-Column Mobile Grid) -->
+<style>
+  .indices-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 8px;
+    margin-top: 10px;
   }
-  </script>
+  .index-card {
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.07);
+    border-radius: 8px;
+    padding: 10px 12px;
+  }
+  .index-name {
+    font-size: 11px;
+    color: #8b949e;
+    margin-bottom: 6px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .index-val-container {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+  }
+  .index-price {
+    font-size: 13px;
+    font-weight: 700;
+    color: #f0f6fc;
+  }
+  .index-change {
+    font-size: 11px;
+    font-weight: 600;
+  }
+  .val-up { color: #2ea44f; }
+  .val-down { color: #f85149; }
+</style>
+
+<div class="indices-grid">
+  <div class="index-card">
+    <div class="index-name">S&P 500 (^GSPC)</div>
+    <div class="index-val-container">
+      <span class="index-price" id="spx-val">--</span>
+      <span class="index-change" id="spx-change">--</span>
+    </div>
+  </div>
+  <div class="index-card">
+    <div class="index-name">Nasdaq (^IXIC)</div>
+    <div class="index-val-container">
+      <span class="index-price" id="ndx-val">--</span>
+      <span class="index-change" id="ndx-change">--</span>
+    </div>
+  </div>
+  <div class="index-card">
+    <div class="index-name">MSCI ACWI (ACWI)</div>
+    <div class="index-val-container">
+      <span class="index-price" id="acwi-val">--</span>
+      <span class="index-change" id="acwi-change">--</span>
+    </div>
+  </div>
+  <div class="index-card">
+    <div class="index-name">MSCI Asia ex JP (AAXJ)</div>
+    <div class="index-val-container">
+      <span class="index-price" id="aaxj-val">--</span>
+      <span class="index-change" id="aaxj-change">--</span>
+    </div>
+  </div>
+</div>
+
+<script>
+  async function fetchMarketIndices() {
+    const symbols = [
+      { code: '%5EGSPC', valId: 'spx-val', changeId: 'spx-change' },
+      { code: '%5EIXIC', valId: 'ndx-val', changeId: 'ndx-change' },
+      { code: 'ACWI', valId: 'acwi-val', changeId: 'acwi-change' },
+      { code: 'AAXJ', valId: 'aaxj-val', changeId: 'aaxj-change' }
+    ];
+
+    for (const item of symbols) {
+      try {
+        const url = `https://corsproxy.io/?${encodeURIComponent('https://query1.finance.yahoo.com/v8/finance/chart/' + item.code + '?interval=1d')}`;
+        const res = await fetch(url);
+        const data = await res.json();
+        const meta = data.chart.result[0].meta;
+        const price = meta.regularMarketPrice;
+        const prevClose = meta.chartPreviousClose || meta.previousClose;
+        const pct = ((price - prevClose) / prevClose) * 100;
+
+        document.getElementById(item.valId).innerText = price.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        const changeEl = document.getElementById(item.changeId);
+        changeEl.innerText = (pct >= 0 ? '+' : '') + pct.toFixed(2) + '%';
+        changeEl.className = 'index-change ' + (pct >= 0 ? 'val-up' : 'val-down');
+      } catch (e) {
+        console.error('Error fetching ' + item.code, e);
+      }
+    }
+  }
+  fetchMarketIndices();
+  setInterval(fetchMarketIndices, 60000);
+</script>
 </div>
         </section>
 
