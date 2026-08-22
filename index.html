@@ -495,72 +495,89 @@ function listenToCloudData() {
             }
         }
 
-        function renderAll() {
-            let totalVal = 0, totalCost = 0, totalValYesterday = 0;
-            let ytdProfitSum = 0, threeMonthProfitSum = 0;
+function renderAll() {
+  let totalVal = 0, totalCost = 0, totalValYesterday = 0;
+  let ytdProfitSum = 0, threeMonthProfitSum = 0;
 
-            const tableBody = document.getElementById('fundTableBody');
-            tableBody.innerHTML = '';
+  const tableBody = document.getElementById('fundTableBody');
+  if (tableBody) tableBody.innerHTML = '';
 
-            funds.forEach(f => {
-      const fVal = f.units * f.currentNav;
-      const profit = fVal - (f.units * f.avgNav);
-      const profitPct = f.avgNav > 0 ? ((f.currentNav - f.avgNav) / f.avgNav) * 100 : 0;
-      
-      // คำนวณกำไรวันนี้เป็นเงินบาท (฿) จาก % 1D
-      const dailyPct = f.dailyPct || 0;
-      const dailyProfit = fVal - (fVal / (1 + (dailyPct / 100)));
+  funds.forEach(f => {
+    const fVal = f.units * f.currentNav;
+    const cost = f.units * f.avgNav;
+    const profit = fVal - cost;
+    const profitPct = f.avgNav > 0 ? ((f.currentNav - f.avgNav) / f.avgNav) * 100 : 0;
 
-      const tr = document.createElement('tr');
-      tr.innerHTML = `
-        <td class="text-center" style="font-weight:600; color:#fff;">${f.code}</td>
-        <td class="text-center">฿${f.avgNav.toFixed(4)}</td>
-        <td class="text-center text-gold">฿${f.currentNav.toFixed(4)}</td>
-        <td class="text-center">${f.units.toLocaleString('th-TH', {minimumFractionDigits:2})}</td>
-        <td class="text-center" style="font-weight:600;">฿${formatNum(fVal)}</td>
-        <td class="text-center ${profit >= 0 ? 'text-green' : 'text-red'}">${profit >= 0 ? '+' : ''}฿${formatNum(profit)} (${profitPct.toFixed(2)}%)</td>
-        
-        <!-- แสดงกำไรวันนี้ ทั้งเงินบาท และ % -->
-        <td class="text-center ${dailyPct >= 0 ? 'text-green' : 'text-red'}">
-          ${dailyProfit >= 0 ? '+' : ''}฿${formatNum(dailyProfit)} (${dailyPct >= 0 ? '+' : ''}${dailyPct.toFixed(2)}%)
-        </td>
+    // สะสมยอดรวมพอร์ต
+    totalVal += fVal;
+    totalCost += cost;
 
-        <td class="text-center ${(f.threeMonthPct || 0) >= 0 ? 'text-green' : 'text-red'}">${(f.threeMonthPct || 0) >= 0 ? '+' : ''}${(f.threeMonthPct || 0).toFixed(2)}%</td>
-        <td class="text-center ${(f.ytdPct || 0) >= 0 ? 'text-blue' : 'text-red'}">${(f.ytdPct || 0) >= 0 ? '+' : ''}${(f.ytdPct || 0).toFixed(2)}%</td>
-        <td class="text-center">
-          <button onclick="openFundModal('${f.id}')" class="btn btn-dark btn-sm text-blue"><i class="fa-solid fa-pen"></i></button>
-          <button onclick="deleteFund('${f.id}')" class="btn btn-dark btn-sm text-red"><i class="fa-solid fa-trash"></i></button>
-        </td>
-      `;
-      tableBody.appendChild(tr);
-    });
-            // คำนวณผลตอบแทนรวม
-            const grandProfit = totalVal - totalCost;
-            const grandProfitPct = totalCost > 0 ? (grandProfit / totalCost) * 100 : 0;
-            
-            // คำนวณกำไร/ขาดทุนเทียบกับเมื่อวาน
-            const dailyProfitSum = totalVal - totalValYesterday;
-            const dailyPctPortfolio = totalValYesterday > 0 ? (dailyProfitSum / totalValYesterday) * 100 : 0;
+    // คำนวณกำไรวันนี้ (1D)
+    const dailyPct = f.dailyPct || 0;
+    const dailyProfit = fVal - (fVal / (1 + (dailyPct / 100)));
+    const valYesterday = fVal / (1 + (dailyPct / 100));
+    totalValYesterday += valYesterday;
 
-            const ytdPctPortfolio = totalVal > 0 ? (ytdProfitSum / totalVal) * 100 : 0;
-            const threeMonthPctPortfolio = totalVal > 0 ? (threeMonthProfitSum / totalVal) * 100 : 0;
+    // คำนวณ YTD และ 3 เดือน
+    if (f.ytdPct) ytdProfitSum += fVal * (f.ytdPct / 100);
+    if (f.threeMonthPct) threeMonthProfitSum += fVal * (f.threeMonthPct / 100);
 
-            // อัปเดตตัวเลขลง Card บนหน้าเว็บ
-            document.getElementById('totalValue').textContent = `฿${formatNum(totalVal)}`;
-            document.getElementById('totalProfit').textContent = `${grandProfit >= 0 ? '+' : ''}฿${formatNum(grandProfit)}`;
-            document.getElementById('totalProfitPercent').textContent = `${grandProfitPct >= 0 ? '+' : ''}${grandProfitPct.toFixed(2)}% จากต้นทุน`;
-            
-            // แสดงผลกำไร/ขาดทุนวันนี้เทียบเมื่อวาน
-            document.getElementById('dailyReturn').textContent = `${dailyProfitSum >= 0 ? '+' : ''}฿${formatNum(dailyProfitSum)}`;
-            document.getElementById('dailyReturnPercent').textContent = `${dailyPctPortfolio >= 0 ? '+' : ''}${dailyPctPortfolio.toFixed(2)}% เทียบเมื่อวาน`;
-            
-            document.getElementById('ytdReturn').textContent = `${ytdPctPortfolio >= 0 ? '+' : ''}${ytdPctPortfolio.toFixed(2)}% YTD`;
-            document.getElementById('threeMonthReturn').textContent = `3 เดือน: ${threeMonthPctPortfolio >= 0 ? '+' : ''}${threeMonthPctPortfolio.toFixed(2)}%`;
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td class="text-center" style="font-weight:600; color:#fff;">${f.code}</td>
+      <td class="text-center">฿${f.avgNav.toFixed(4)}</td>
+      <td class="text-center text-gold">฿${f.currentNav.toFixed(4)}</td>
+      <td class="text-center">${f.units.toLocaleString('th-TH', {minimumFractionDigits:2})}</td>
+      <td class="text-center" style="font-weight:600;">฿${formatNum(fVal)}</td>
+      <td class="text-center ${profit >= 0 ? 'text-green' : 'text-red'}">${profit >= 0 ? '+' : ''}฿${formatNum(profit)} (${profitPct.toFixed(2)}%)</td>
+      <td class="text-center ${dailyPct >= 0 ? 'text-green' : 'text-red'}">
+        ${dailyProfit >= 0 ? '+' : ''}฿${formatNum(dailyProfit)} (${dailyPct >= 0 ? '+' : ''}${dailyPct.toFixed(2)}%)
+      </td>
+      <td class="text-center ${(f.threeMonthPct || 0) >= 0 ? 'text-green' : 'text-red'}">${(f.threeMonthPct || 0) >= 0 ? '+' : ''}${(f.threeMonthPct || 0).toFixed(2)}%</td>
+      <td class="text-center ${(f.ytdPct || 0) >= 0 ? 'text-blue' : 'text-red'}">${(f.ytdPct || 0) >= 0 ? '+' : ''}${(f.ytdPct || 0).toFixed(2)}%</td>
+      <td class="text-center">
+        <button onclick="openFundModal('${f.id}')" class="btn btn-dark btn-sm text-blue"><i class="fa-solid fa-pen"></i></button>
+        <button onclick="deleteFund('${f.id}')" class="btn btn-dark btn-sm text-red"><i class="fa-solid fa-trash"></i></button>
+      </td>
+    `;
+    if (tableBody) tableBody.appendChild(tr);
+  });
 
-            document.getElementById('fundCountBadge').textContent = `${funds.length} กองทุน`;
+  // --- คำนวณและอัปเดตการ์ดสรุปยอดด้านบน ---
+  const totalProfit = totalVal - totalCost;
+  const totalProfitPct = totalCost > 0 ? (totalProfit / totalCost) * 100 : 0;
+  const totalDailyProfit = totalVal - totalValYesterday;
+  const totalDailyPct = totalValYesterday > 0 ? (totalDailyProfit / totalValYesterday) * 100 : 0;
+  const totalYtdPct = totalVal > 0 ? (ytdProfitSum / totalVal) * 100 : 0;
+  const total3mPct = totalVal > 0 ? (threeMonthProfitSum / totalVal) * 100 : 0;
 
-            renderRebalanceTable(totalVal);
-        }
+  if (document.getElementById('totalVal')) document.getElementById('totalVal').innerText = '฿' + formatNum(totalVal);
+  if (document.getElementById('totalProfit')) {
+    const el = document.getElementById('totalProfit');
+    el.innerText = (totalProfit >= 0 ? '+฿' : '-฿') + formatNum(Math.abs(totalProfit));
+    el.className = 'val ' + (totalProfit >= 0 ? 'text-green' : 'text-red');
+  }
+  if (document.getElementById('totalProfitPct')) {
+    document.getElementById('totalProfitPct').innerText = `${totalProfitPct >= 0 ? '+' : ''}${totalProfitPct.toFixed(2)}% จากต้นทุน`;
+  }
+  if (document.getElementById('totalDaily')) {
+    const el = document.getElementById('totalDaily');
+    el.innerText = (totalDailyProfit >= 0 ? '+฿' : '-฿') + formatNum(Math.abs(totalDailyProfit));
+    el.className = 'val ' + (totalDailyProfit >= 0 ? 'text-green' : 'text-red');
+  }
+  if (document.getElementById('totalDailyPct')) {
+    document.getElementById('totalDailyPct').innerText = `${totalDailyPct >= 0 ? '+' : ''}${totalDailyPct.toFixed(2)}% เทียบเมื่อวาน`;
+  }
+  if (document.getElementById('totalYtd')) {
+    document.getElementById('totalYtd').innerText = `${totalYtdPct >= 0 ? '+' : ''}${totalYtdPct.toFixed(2)}% YTD`;
+  }
+  if (document.getElementById('total3m')) {
+    document.getElementById('total3m').innerText = `3 เดือน: ${total3mPct >= 0 ? '+' : ''}${total3mPct.toFixed(2)}%`;
+  }
+
+  // อัปเดตตาราง Rebalance ตามยอดรวมพอร์ตใหม่
+  if (typeof renderRebalanceTable === 'function') renderRebalanceTable(totalVal);
+}
 
         function renderRebalanceTable(totalVal) {
             const tbody = document.getElementById('rebalanceTableBody');
