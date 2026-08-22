@@ -263,7 +263,7 @@
                 <div id="totalProfitPercent" class="card-sub text-green">+0.00%</div>
             </div>
             <div class="card">
-                <div class="card-label">การเปลี่ยนแปลงรายวัน (1D)</div>
+                <div class="card-label">กำไรวันนี้</div>
                 <div id="dailyReturn" class="card-val text-green">+฿0.00</div>
                 <div id="dailyReturnPercent" class="card-sub text-green">+0.00% วันนี้</div>
             </div>
@@ -572,7 +572,7 @@ function renderAll() {
     el.className = 'val ' + (totalDailyProfit >= 0 ? 'text-green' : 'text-red');
   }
   if (document.getElementById('dailyReturnPercent')) {
-    document.getElementById('dailyReturnPercent').textContent = `${totalDailyPct >= 0 ? '+' : ''}${totalDailyPct.toFixed(2)}% เทียบเมื่อวาน`;
+    document.getElementById('dailyReturnPercent').textContent = `${totalDailyPct >= 0 ? '+' : ''}${totalDailyPct.toFixed(2)}% จากเมื่อวาน`;
   }
 
   // 4. ผลตอบแทน YTD & 3 เดือน
