@@ -221,43 +221,46 @@
 </div>
 
 <script>
-  async function fetchMarketIndices() {
-    const symbols = [
-      { code: '%5EGSPC', valId: 'spx-val', changeId: 'spx-change' },
-      { code: '%5EIXIC', valId: 'ndx-val', changeId: 'ndx-change' },
-      { code: 'ACWI', valId: 'acwi-val', changeId: 'acwi-change' },
-      { code: 'AAXJ', valId: 'aaxj-val', changeId: 'aaxj-change' }
-    ];
-for (const item of symbols) {
-      try {
-        const targetUrl = 'https://query1.finance.yahoo.com/v8/finance/chart/' + item.code + '?interval=1d';
-        const url = 'https://api.allorigins.win/raw?url=' + encodeURIComponent(targetUrl);
-        const res = await fetch(url);
-        if (!res.ok) continue;
+async function fetchMarketIndices() {
+  const symbols = [
+    { code: '^GSPC', valId: 'gspcPrice', changeId: 'gspcChange' },
+    { code: '^IXIC', valId: 'ixicPrice', changeId: 'ixicChange' },
+    { code: 'ACWI',  valId: 'acwiPrice', changeId: 'acwiChange' },
+    { code: 'AAXJ',  valId: 'aaxjPrice', changeId: 'aaxjChange' }
+  ];
 
-        const data = await res.json();
-        const meta = data?.chart?.result?.[0]?.meta;
+  for (const item of symbols) {
+    try {
+      const targetUrl = 'https://query1.finance.yahoo.com/v8/finance/chart/' + item.code + '?interval=1d';
+      const url = 'https://api.allorigins.win/raw?url=' + encodeURIComponent(targetUrl);
+      const res = await fetch(url);
+      if (!res.ok) continue;
 
-        if (meta) {
-          const price = meta.regularMarketPrice;
-          const prevClose = meta.chartPreviousClose || meta.previousClose;
-          const pct = ((price - prevClose) / prevClose) * 100;
+      const data = await res.json();
+      const meta = data?.chart?.result?.[0]?.meta;
 
-          const priceEl = document.getElementById(item.valId);
-          if (priceEl) priceEl.innerText = price.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+      if (meta) {
+        const price = meta.regularMarketPrice;
+        const prevClose = meta.chartPreviousClose || meta.previousClose;
+        const pct = ((price - prevClose) / prevClose) * 100;
 
-          const changeEl = document.getElementById(item.changeId);
-          if (changeEl) {
-            changeEl.innerText = (pct >= 0 ? '+' : '') + pct.toFixed(2) + '%';
-            changeEl.className = 'index-change ' + (pct >= 0 ? 'val-up' : 'val-down');
-          }
+        const priceEl = document.getElementById(item.valId);
+        if (priceEl) priceEl.innerText = price.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+        const changeEl = document.getElementById(item.changeId);
+        if (changeEl) {
+          changeEl.innerText = (pct >= 0 ? '+' : '') + pct.toFixed(2) + '%';
+          changeEl.className = 'index-change ' + (pct >= 0 ? 'val-up' : 'val-down');
         }
-      } catch (e) {
-        console.error('Error fetching ' + item.code, e);
       }
+    } catch (e) {
+      console.error('Error fetching ' + item.code, e);
     }
-  fetchMarketIndices();
-  setInterval(fetchMarketIndices, 60000);
+  }
+}
+
+fetchMarketIndices();
+setInterval(fetchMarketIndices, 60000);
 </script>
 </div>
         </section>
