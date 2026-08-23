@@ -278,26 +278,7 @@
 </div>
             </div>
         </div>
-
-        <div class="table-card">
-            <div class="table-header">
-                <h3 style="font-size: 15px; color:#fff;"><i class="fa-solid fa-scale-balanced text-blue"></i> ตารางสัดส่วนเป้าหมาย</h3>
-            </div>
-            <div class="table-responsive">
-                <table>
-                    <thead>
-                        <tr>
-  <th>ชื่อกองทุน</th>
-  <th class="text-center">มูลค่าปัจจุบัน</th>
-  <th class="text-center">สัดส่วนปัจจุบัน (%)</th>
-  <th class="text-center">สัดส่วนเป้าหมาย (%)</th>
-  <th class="text-center">ส่วนต่าง (%)</th>
-</tr>
-                    </thead>
-                    <tbody id="rebalanceTableBody"></tbody>
-                </table>
-            </div>
-        </div>
+   
 
         <div class="table-card">
             <div class="table-header">
@@ -352,21 +333,72 @@
       <div class="card-label"><i class="fa-solid fa-history"></i> Portfolio Value History Log</div>
       <button onclick="clearHistoryLog()" class="btn btn-dark btn-sm text-red" style="font-size: 11px;">ล้างประวัติ</button>
     </div>
-    <div class="table-responsive" style="max-height: 230px; overflow-y: auto;">
-      <table class="table">
-        <thead>
-          <tr>
-            <th class="text-left">Date</th>
-            <th class="text-center">Portfolio Value (฿)</th>
-            <th class="text-center">Total Profit/Loss (฿)</th>
-          </tr>
-        </thead>
-        <tbody id="historyTableBody"></tbody>
-      </table>
+    <!-- ================= โซนที่ 1: กราฟคู่ (Bar Chart + Line Chart) ================= -->
+  <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 16px; margin-top: 20px;">
+    
+    <!-- Bar Chart: เปรียบเทียบ % กำไรกองทุน -->
+    <div class="card" style="margin: 0;">
+      <div class="card-label"><i class="fa-solid fa-chart-bar"></i> Performance by Fund (%)</div>
+      <div style="position: relative; height: 220px; width: 100%; margin-top: 10px;">
+        <canvas id="profitBarChart"></canvas>
+      </div>
     </div>
+
+    <!-- Line Chart: เทรนด์การเติบโตของพอร์ต (History Trend) -->
+    <div class="card" style="margin: 0;">
+      <div class="card-label"><i class="fa-solid fa-chart-line"></i> Portfolio Trend History</div>
+      <div style="position: relative; height: 220px; width: 100%; margin-top: 10px;">
+        <canvas id="historyLineChart"></canvas>
+      </div>
+    </div>
+
   </div>
 
-</div>
+  <!-- ================= โซนที่ 2: ตารางคู่ (ตารางสัดส่วนเป้าหมาย + History Log) ================= -->
+  <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 16px; margin-top: 20px;">
+    
+    <!-- ตารางสัดส่วนเป้าหมาย (Rebalance Table) -->
+    <div class="table-card" style="margin: 0;">
+      <div class="table-header">
+        <h3 style="font-size: 15px; color:#fff;"><i class="fa-solid fa-scale-balanced text-blue"></i> ตารางสัดส่วนเป้าหมาย</h3>
+      </div>
+      <div class="table-responsive" style="max-height: 220px; overflow-y: auto;">
+        <table class="table">
+          <thead>
+            <tr>
+              <th class="text-left">ชื่อกองทุน</th>
+              <th class="text-center">มูลค่าปัจจุบัน</th>
+              <th class="text-center">สัดส่วนปัจจุบัน (%)</th>
+              <th class="text-center">สัดส่วนเป้าหมาย (%)</th>
+              <th class="text-center">ส่วนต่าง (%)</th>
+            </tr>
+          </thead>
+          <tbody id="rebalanceTableBody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- ตาราง Portfolio Value History Log -->
+    <div class="card" style="margin: 0;">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+        <div class="card-label"><i class="fa-solid fa-history"></i> Portfolio Value History Log</div>
+        <button onclick="clearHistoryLog()" class="btn btn-dark btn-sm text-red" style="font-size: 11px;">ล้างประวัติ</button>
+      </div>
+      <div class="table-responsive" style="max-height: 220px; overflow-y: auto;">
+        <table class="table">
+          <thead>
+            <tr>
+              <th class="text-left">Date</th>
+              <th class="text-center">Portfolio Value (฿)</th>
+              <th class="text-center">Total Profit/Loss (฿)</th>
+            </tr>
+          </thead>
+          <tbody id="historyTableBody"></tbody>
+        </table>
+      </div>
+    </div>
+
+  </div>
             
     </main>
 
@@ -911,29 +943,87 @@ function logPortfolioHistory(totalVal, totalProfit) {
   renderPortfolioHistory(history);
 }
 
+// --- 1. ฟังก์ชันวาด Line Chart แสดงเทรนด์มูลค่าพอร์ตย้อนหลัง ---
+let historyChartInstance = null;
+function renderHistoryLineChart(historyData = null) {
+  const ctx = document.getElementById('historyLineChart');
+  if (!ctx) return;
+
+  const history = historyData || JSON.parse(localStorage.getItem('scb_port_history') || '[]');
+  const sortedHistory = [...history].reverse(); // เรียงจากวันที่เก่าไปใหม่
+
+  const labels = sortedHistory.map(h => h.date);
+  const dataValues = sortedHistory.map(h => h.val);
+
+  if (historyChartInstance) historyChartInstance.destroy();
+
+  historyChartInstance = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels: labels,
+      datasets: [{
+        label: 'มูลค่าพอร์ต',
+        data: dataValues,
+        borderColor: '#3b82f6',
+        backgroundColor: 'rgba(59, 130, 246, 0.15)',
+        borderWidth: 2,
+        fill: true,
+        tension: 0.3,
+        pointBackgroundColor: '#3b82f6',
+        pointRadius: 3
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          callbacks: {
+            label: (ctx) => ` มูลค่าพอร์ต: ฿${Number(ctx.raw).toLocaleString('th-TH')}`
+          }
+        }
+      },
+      scales: {
+        x: { ticks: { color: '#888' }, grid: { display: false } },
+        y: { 
+          ticks: { 
+            color: '#888',
+            callback: (v) => '฿' + (v >= 1000000 ? (v/1000000).toFixed(1) + 'M' : (v/1000).toFixed(0) + 'k')
+          },
+          grid: { color: 'rgba(255,255,255,0.05)' }
+        }
+      }
+    }
+  });
+}
+
+// --- 2. อัปเดตฟังก์ชัน renderPortfolioHistory ---
 function renderPortfolioHistory(historyData = null) {
   const tbody = document.getElementById('historyTableBody');
-  if (!tbody) return;
-  
   const history = historyData || JSON.parse(localStorage.getItem('scb_port_history') || '[]');
-  tbody.innerHTML = '';
 
-  if (history.length === 0) {
-    tbody.innerHTML = `<tr><td colspan="3" class="text-center" style="color:#666;">ยังไม่มีประวัติการบันทึก</td></tr>`;
-    return;
+  if (tbody) {
+    tbody.innerHTML = '';
+    if (history.length === 0) {
+      tbody.innerHTML = `<tr><td colspan="3" class="text-center" style="color:#666;">ยังไม่มีประวัติการบันทึก</td></tr>`;
+    } else {
+      history.forEach(h => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td class="text-left" style="color:#aaa;">${h.date}</td>
+          <td class="text-center" style="font-weight:600;">฿${formatNum(h.val)}</td>
+          <td class="text-center ${h.profit >= 0 ? 'text-green' : 'text-red'}">
+            ${h.profit >= 0 ? '+' : ''}฿${formatNum(h.profit)}
+          </td>
+        `;
+        tbody.appendChild(tr);
+      });
+    }
   }
 
-  history.forEach(h => {
-    const tr = document.createElement('tr');
-    tr.innerHTML = `
-      <td class="text-left" style="color:#aaa;">${h.date}</td>
-      <td class="text-center" style="font-weight:600;">฿${formatNum(h.val)}</td>
-      <td class="text-center ${h.profit >= 0 ? 'text-green' : 'text-red'}">
-        ${h.profit >= 0 ? '+' : ''}฿${formatNum(h.profit)}
-      </td>
-    `;
-    tbody.appendChild(tr);
-  });
+  // เรียกสั่งวาด Line Chart อัตโนมัติพร้อมกัน
+  renderHistoryLineChart(history);
 }
 
 function clearHistoryLog() {
