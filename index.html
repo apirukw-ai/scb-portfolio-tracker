@@ -222,56 +222,44 @@
 
 <script>
 async function fetchMarketIndices() {
-  const symbols = [
-    { code: '^GSPC', valId: 'gspcPrice', changeId: 'gspcChange' },
-    { code: '^IXIC', valId: 'ixicPrice', changeId: 'ixicChange' },
-    { code: 'ACWI',  valId: 'acwiPrice', changeId: 'acwiChange' },
-    { code: 'AAXJ',  valId: 'aaxjPrice', changeId: 'aaxjChange' }
+  const symbolsMap = [
+    { tvSymbol: 'AMEX:SPY',    valId: 'gspcPrice', changeId: 'gspcChange' },
+    { tvSymbol: 'NASDAQ:QQQ',   valId: 'ixicPrice', changeId: 'ixicChange' },
+    { tvSymbol: 'AMEX:ACWI',   valId: 'acwiPrice', changeId: 'acwiChange' },
+    { tvSymbol: 'NASDAQ:AAXJ', valId: 'aaxjPrice', changeId: 'aaxjChange' }
   ];
 
-  for (const item of symbols) {
-    let success = false;
-    const targetUrl = 'https://query2.finance.yahoo.com/v8/finance/chart/' + item.code + '?interval=1d';
-    
-    // รายชื่อ Proxy สำรอง 3 ตัว
-    const proxies = [
-      'https://api.codetabs.com/v1/proxy?quest=' + encodeURIComponent(targetUrl),
-      'https://api.allorigins.win/raw?url=' + encodeURIComponent(targetUrl),
-      'https://thingproxy.freeboard.io/fetch/' + targetUrl
-    ];
+  try {
+    const res = await fetch('https://scanner.tradingview.com/global/scan', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        symbols: { tickers: symbolsMap.map(s => s.tvSymbol) },
+        columns: ['close', 'change']
+      })
+    });
 
-    for (const url of proxies) {
-      try {
-        const res = await fetch(url);
-        if (!res.ok) continue;
+    if (!res.ok) return;
+    const json = await res.json();
 
-        const data = await res.json();
-        const meta = data?.chart?.result?.[0]?.meta;
+    json.data.forEach(item => {
+      const match = symbolsMap.find(s => s.tvSymbol === item.s);
+      if (match && item.d) {
+        const price = item.d[0];
+        const pct = item.d[1];
 
-        if (meta) {
-          const price = meta.regularMarketPrice;
-          const prevClose = meta.chartPreviousClose || meta.previousClose;
-          const pct = ((price - prevClose) / prevClose) * 100;
+        const priceEl = document.getElementById(match.valId);
+        if (priceEl) priceEl.innerText = price.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
-          const priceEl = document.getElementById(item.valId);
-          if (priceEl) priceEl.innerText = price.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-
-          const changeEl = document.getElementById(item.changeId);
-          if (changeEl) {
-            changeEl.innerText = (pct >= 0 ? '+' : '') + pct.toFixed(2) + '%';
-            changeEl.className = 'index-change ' + (pct >= 0 ? 'val-up' : 'val-down');
-          }
-          success = true;
-          break; // เมื่อดึงผ่านแล้ว ให้ข้ามไปทำดัชนีตัวถัดไป
+        const changeEl = document.getElementById(match.changeId);
+        if (changeEl) {
+          changeEl.innerText = (pct >= 0 ? '+' : '') + pct.toFixed(2) + '%';
+          changeEl.className = 'index-change ' + (pct >= 0 ? 'val-up' : 'val-down');
         }
-      } catch (e) {
-        // หาก Proxy ตัวนี้ล้มเหลว จะวนไปทดลอง Proxy ตัวถัดไป
       }
-    }
-
-    if (!success) {
-      console.warn('ไม่สามารถดึงข้อมูลดัชนีได้:', item.code);
-    }
+    });
+  } catch (e) {
+    console.error('Error fetching market data:', e);
   }
 }
 
