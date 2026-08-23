@@ -28,6 +28,9 @@
     <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-database-compat.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+
+    <!-- แทรก CDN Chart.js ไว้บรรทัดนี้ครับ -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     
     <style>
         :root {
@@ -332,6 +335,34 @@
             </div>
         </div>
 
+<!-- การ์ดแสดง Bar Chart เปรียบเทียบกำไรสะสม -->
+<div class="card" style="margin-top: 20px;">
+  <div class="card-label"><i class="fa-solid fa-chart-bar"></i> เปรียบเทียบ % กำไรสะสมแต่ละกองทุน</div>
+  <div style="position: relative; height: 220px; width: 100%; margin-top: 10px;">
+    <canvas id="profitBarChart"></canvas>
+  </div>
+</div>
+
+<!-- การ์ดบันทึกประวัติมูลค่าพอร์ตรวม -->
+<div class="card" style="margin-top: 20px;">
+  <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+    <div class="card-label"><i class="fa-solid fa-history"></i> ประวัติมูลค่าพอร์ตรวม (History Log)</div>
+    <button onclick="clearHistoryLog()" class="btn btn-dark btn-sm text-red" style="font-size: 11px;">ล้างประวัติ</button>
+  </div>
+  <div class="table-responsive" style="max-height: 180px; overflow-y: auto;">
+    <table class="table">
+      <thead>
+        <tr>
+          <th class="text-left">วันที่บันทึก</th>
+          <th class="text-center">มูลค่าพอร์ตรวม</th>
+          <th class="text-center">กำไรสะสม</th>
+        </tr>
+      </thead>
+      <tbody id="historyTableBody"></tbody>
+    </table>
+  </div>
+</div>
+            
     </main>
 
     <!-- Modal OCR & Fund Inputs -->
@@ -773,6 +804,111 @@ function renderRebalanceTable(totalVal) {
     navigator.serviceWorker.register('./sw.js').catch(err => console.error(err));
   });
 }
+    
+// --- 1. วาด Bar Chart เปรียบเทียบ % กำไรสะสม ---
+let profitChartInstance = null;
+function renderProfitChart() {
+  const ctx = document.getElementById('profitBarChart');
+  if (!ctx) return;
+
+  const labels = funds.map(f => f.code);
+  const dataPcts = funds.map(f => {
+    const cost = f.units * f.avgNav;
+    const fVal = f.units * f.currentNav;
+    return cost > 0 ? Number(((fVal - cost) / cost * 100).toFixed(2)) : 0;
+  });
+
+  const backgroundColors = dataPcts.map(pct => pct >= 0 ? '#10b981' : '#ef4444');
+
+  if (profitChartInstance) profitChartInstance.destroy();
+
+  profitChartInstance = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels: labels,
+      datasets: [{
+        label: '% กำไรสะสม',
+        data: dataPcts,
+        backgroundColor: backgroundColors,
+        borderRadius: 4
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          callbacks: {
+            label: (ctx) => ` กำไรสะสม: ${ctx.raw >= 0 ? '+' : ''}${ctx.raw}%`
+          }
+        }
+      },
+      scales: {
+        x: { ticks: { color: '#888' }, grid: { display: false } },
+        y: { 
+          ticks: { color: '#888', callback: (v) => v + '%' },
+          grid: { color: 'rgba(255,255,255,0.05)' }
+        }
+      }
+    }
+  });
+}
+
+// --- 2. ระบบบันทึกและแสดงประวัติพอร์ต (History Log) ---
+function logPortfolioHistory(totalVal, totalProfit) {
+  if (totalVal <= 0) return;
+  
+  const today = new Date();
+  const dateStr = today.toLocaleDateString('th-TH', { day: '2-digit', month: 'short', year: '2-digit' });
+  let history = JSON.parse(localStorage.getItem('scb_port_history') || '[]');
+
+  const existingIdx = history.findIndex(h => h.date === dateStr);
+  const logData = { date: dateStr, val: totalVal, profit: totalProfit };
+
+  if (existingIdx >= 0) {
+    history[existingIdx] = logData;
+  } else {
+    history.unshift(logData);
+    if (history.length > 30) history.pop(); // บันทึกสูงสุด 30 วันล่าสุด
+  }
+
+  localStorage.setItem('scb_port_history', JSON.stringify(history));
+  renderPortfolioHistory(history);
+}
+
+function renderPortfolioHistory(historyData = null) {
+  const tbody = document.getElementById('historyTableBody');
+  if (!tbody) return;
+  
+  const history = historyData || JSON.parse(localStorage.getItem('scb_port_history') || '[]');
+  tbody.innerHTML = '';
+
+  if (history.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="3" class="text-center" style="color:#666;">ยังไม่มีประวัติการบันทึก</td></tr>`;
+    return;
+  }
+
+  history.forEach(h => {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td class="text-left" style="color:#aaa;">${h.date}</td>
+      <td class="text-center" style="font-weight:600;">฿${formatNum(h.val)}</td>
+      <td class="text-center ${h.profit >= 0 ? 'text-green' : 'text-red'}">
+        ${h.profit >= 0 ? '+' : ''}฿${formatNum(h.profit)}
+      </td>
+    `;
+    tbody.appendChild(tr);
+  });
+}
+
+function clearHistoryLog() {
+  if (confirm('ต้องการล้างประวัติมูลค่าพอร์ตทั้งหมดหรือไม่?')) {
+    localStorage.removeItem('scb_port_history');
+    renderPortfolioHistory([]);
+  }
+}
+        
     </script>
 </body>
 </html>
