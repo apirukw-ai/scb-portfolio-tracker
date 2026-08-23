@@ -222,45 +222,46 @@
 
 <script>
 async function fetchMarketIndices() {
-  const symbols = [
-    { code: '^GSPC', valId: 'gspcPrice', changeId: 'gspcChange' },
-    { code: '^IXIC', valId: 'ixicPrice', changeId: 'ixicChange' },
-    { code: 'ACWI',  valId: 'acwiPrice', changeId: 'acwiChange' },
-    { code: 'AAXJ',  valId: 'aaxjPrice', changeId: 'aaxjChange' }
+  const symbolsMap = [
+    { tvSymbol: 'AMEX:SPY',    valId: 'gspcPrice', changeId: 'gspcChange' },
+    { tvSymbol: 'NASDAQ:QQQ',   valId: 'ixicPrice', changeId: 'ixicChange' },
+    { tvSymbol: 'AMEX:ACWI',   valId: 'acwiPrice', changeId: 'acwiChange' },
+    { tvSymbol: 'NASDAQ:AAXJ', valId: 'aaxjPrice', changeId: 'aaxjChange' }
   ];
 
-  for (const item of symbols) {
-    try {
-      const targetUrl = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(item.code)}?interval=1d`;
-      // ใช้ /get?url= เพื่อให้ Proxy แปลงข้อมูลเป็น JSON ปลอดภัยจาก CORS Preflight
-      const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(targetUrl)}`;
+  try {
+    // ตัด headers ออกเพื่อเลี่ยง CORS Preflight
+    const res = await fetch('https://scanner.tradingview.com/global/scan', {
+      method: 'POST',
+      body: JSON.stringify({
+        symbols: { tickers: symbolsMap.map(s => s.tvSymbol) },
+        columns: ['close', 'change']
+      })
+    });
 
-      const res = await fetch(proxyUrl);
-      if (!res.ok) continue;
+    if (!res.ok) return;
+    const json = await res.json();
 
-      const wrapper = await res.json();
-      if (!wrapper.contents) continue;
+    if (json && json.data) {
+      json.data.forEach(item => {
+        const match = symbolsMap.find(s => s.tvSymbol === item.s);
+        if (match && item.d) {
+          const price = item.d[0];
+          const pct = item.d[1];
 
-      const data = JSON.parse(wrapper.contents);
-      const meta = data?.chart?.result?.[0]?.meta;
+          const priceEl = document.getElementById(match.valId);
+          if (priceEl) priceEl.innerText = price.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
-      if (meta) {
-        const price = meta.regularMarketPrice;
-        const prevClose = meta.chartPreviousClose || meta.previousClose;
-        const pct = ((price - prevClose) / prevClose) * 100;
-
-        const priceEl = document.getElementById(item.valId);
-        if (priceEl) priceEl.innerText = price.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-
-        const changeEl = document.getElementById(item.changeId);
-        if (changeEl) {
-          changeEl.innerText = (pct >= 0 ? '+' : '') + pct.toFixed(2) + '%';
-          changeEl.className = 'index-change ' + (pct >= 0 ? 'val-up' : 'val-down');
+          const changeEl = document.getElementById(match.changeId);
+          if (changeEl) {
+            changeEl.innerText = (pct >= 0 ? '+' : '') + pct.toFixed(2) + '%';
+            changeEl.className = 'index-change ' + (pct >= 0 ? 'val-up' : 'val-down');
+          }
         }
-      }
-    } catch (e) {
-      console.error('Error fetching ' + item.code, e);
+      });
     }
+  } catch (e) {
+    console.error('Error fetching market data:', e);
   }
 }
 
