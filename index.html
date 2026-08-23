@@ -302,7 +302,13 @@
                 <span id="fundCountBadge" class="badge">0 กองทุน</span>
             </div>
             <div class="table-responsive">
-                <table>
+<!--  แทรกป้ายเวลาตรงนี้ (บรรทัด 304) -->
+  <div style="font-size: 12px; color: #888; text-align: right; margin-bottom: 10px;">
+    <i class="fa-solid fa-clock"></i> NAV อัปเดตล่าสุด: <span id="lastUpdatedText" style="color:#f59e0b;">-</span>
+  </div>
+
+  <div class="table-responsive">
+                                <table>
                     <thead>
   <tr>
     <th class="text-center">ชื่อกองทุน</th>
@@ -318,6 +324,10 @@
   </tr>
 </thead>
                     <tbody id="fundTableBody"></tbody>
+
+                    <!-- แทรกบรรทัดนี้ลงไปตรงบรรทัด 321 -->
+<tfoot id="fundTableFoot" style="font-weight:600; background:rgba(255,255,255,0.05); border-top:2px solid #333;"></tfoot>
+                    
                 </table>
             </div>
         </div>
@@ -510,17 +520,14 @@ function renderAll() {
     const profit = fVal - cost;
     const profitPct = f.avgNav > 0 ? ((f.currentNav - f.avgNav) / f.avgNav) * 100 : 0;
 
-    // สะสมยอดรวมพอร์ต
     totalVal += fVal;
     totalCost += cost;
 
-    // คำนวณกำไรวันนี้ (1D)
     const dailyPct = f.dailyPct || 0;
     const dailyProfit = fVal - (fVal / (1 + (dailyPct / 100)));
     const valYesterday = fVal / (1 + (dailyPct / 100));
     totalValYesterday += valYesterday;
 
-    // คำนวณ YTD และ 3 เดือน
     if (f.ytdPct) ytdProfitSum += fVal * (f.ytdPct / 100);
     if (f.threeMonthPct) threeMonthProfitSum += fVal * (f.threeMonthPct / 100);
 
@@ -545,7 +552,7 @@ function renderAll() {
     if (tableBody) tableBody.appendChild(tr);
   });
 
-// --- อัปเดตการ์ดสรุปยอดด้านบน (ใช้ ID ตรงตาม HTML โครงการ) ---
+  // --- คำนวณยอดรวมพอร์ต ---
   const totalProfit = totalVal - totalCost;
   const totalProfitPct = totalCost > 0 ? (totalProfit / totalCost) * 100 : 0;
   const totalDailyProfit = totalVal - totalValYesterday;
@@ -553,11 +560,28 @@ function renderAll() {
   const totalYtdPct = totalVal > 0 ? (ytdProfitSum / totalVal) * 100 : 0;
   const total3mPct = totalVal > 0 ? (threeMonthProfitSum / totalVal) * 100 : 0;
 
-  // 1. มูลค่าพอร์ตรวม
+  // --- 1. อัปเดตสรุปท้ายตาราง (tfoot) ---
+  const tableFoot = document.getElementById('fundTableFoot');
+  if (tableFoot) {
+    tableFoot.innerHTML = `
+      <tr>
+        <td class="text-center" colspan="4" style="color:#aaa;">รวมทั้งพอร์ต (${funds.length} กองทุน)</td>
+        <td class="text-center" style="color:#fff;">฿${formatNum(totalVal)}</td>
+        <td class="text-center ${totalProfit >= 0 ? 'text-green' : 'text-red'}">
+          ${totalProfit >= 0 ? '+' : ''}฿${formatNum(totalProfit)} (${totalProfitPct.toFixed(2)}%)
+        </td>
+        <td class="text-center ${totalDailyProfit >= 0 ? 'text-green' : 'text-red'}">
+          ${totalDailyProfit >= 0 ? '+' : ''}฿${formatNum(totalDailyProfit)} (${totalDailyPct >= 0 ? '+' : ''}${totalDailyPct.toFixed(2)}%)
+        </td>
+        <td class="text-center" colspan="3"></td>
+      </tr>
+    `;
+  }
+
+  // --- 2. อัปเดตการ์ดด้านบน ---
   const elTotalVal = document.getElementById('totalValue') || document.getElementById('totalVal');
   if (elTotalVal) elTotalVal.textContent = '฿' + formatNum(totalVal);
 
-  // 2. กำไรสะสมรวม
   if (document.getElementById('totalProfit')) {
     const el = document.getElementById('totalProfit');
     el.textContent = (totalProfit >= 0 ? '+฿' : '-฿') + formatNum(Math.abs(totalProfit));
@@ -567,7 +591,6 @@ function renderAll() {
     document.getElementById('totalProfitPercent').textContent = `${totalProfitPct >= 0 ? '+' : ''}${totalProfitPct.toFixed(2)}% จากต้นทุน`;
   }
 
-  // 3. การเปลี่ยนแปลงรายวัน (1D)
   if (document.getElementById('dailyReturn')) {
     const el = document.getElementById('dailyReturn');
     el.textContent = (totalDailyProfit >= 0 ? '+฿' : '-฿') + formatNum(Math.abs(totalDailyProfit));
@@ -577,7 +600,6 @@ function renderAll() {
     document.getElementById('dailyReturnPercent').textContent = `${totalDailyPct >= 0 ? '+' : ''}${totalDailyPct.toFixed(2)}% จากเมื่อวาน`;
   }
 
-  // 4. ผลตอบแทน YTD & 3 เดือน
   if (document.getElementById('ytdReturn')) {
     document.getElementById('ytdReturn').textContent = `${totalYtdPct >= 0 ? '+' : ''}${totalYtdPct.toFixed(2)}% ตั้งแต่ต้นปี`;
   }
@@ -589,31 +611,54 @@ function renderAll() {
     document.getElementById('fundCountBadge').textContent = `${funds.length} กองทุน`;
   }
 
-  // อัปเดตตาราง Rebalance
+  // --- 3. อัปเดตเวลา NAV ล่าสุด ---
+    const lastUpdatedEl = document.getElementById('lastUpdatedText');
+  if (lastUpdatedEl) {
+    const today = new Date();
+    const thaiDate = today.toLocaleDateString('th-TH', { day: 'numeric', month: 'short', year: 'numeric' });
+    lastUpdatedEl.textContent = `${thaiDate} (19:30 น.)`;
+  }
+
+  // --- 4. อัปเดตตาราง Rebalance ---
   if (typeof renderRebalanceTable === 'function') renderRebalanceTable(totalVal);
 }
 
-        function renderRebalanceTable(totalVal) {
-            const tbody = document.getElementById('rebalanceTableBody');
-            tbody.innerHTML = '';
+function renderRebalanceTable(totalVal) {
+  const tbody = document.getElementById('rebalanceTableBody');
+  if (!tbody) return;
+  tbody.innerHTML = '';
 
-funds.forEach(f => {
-      const fVal = f.units * f.currentNav;
-      const currentPct = totalVal > 0 ? (fVal / totalVal) * 100 : 0;
-      const targetPct = f.targetPct || 0;
-      const diffPct = currentPct - targetPct;
+  funds.forEach(f => {
+    const fVal = f.units * f.currentNav;
+    const currentPct = totalVal > 0 ? (fVal / totalVal) * 100 : 0;
+    const targetPct = f.targetPct || 0;
+    const diffPct = currentPct - targetPct;
 
-      const tr = document.createElement('tr');
-      tr.innerHTML = `
-        <td style="font-weight:600; color:#fff;">${f.code}</td>
-        <td class="text-center">฿${formatNum(fVal)}</td>
-        <td class="text-center text-purple">${currentPct.toFixed(1)}%</td>
-        <td class="text-center text-gold">${targetPct.toFixed(1)}%</td>
-        <td class="text-center ${diffPct >= 0 ? 'text-green' : 'text-red'}">${diffPct >= 0 ? '+' : ''}${diffPct.toFixed(1)}%</td>
-      `;
-      tbody.appendChild(tr);
-    });
-        }
+    // เลือกสีแถบ Progress Bar ตามสัดส่วน
+    let barColor = '#3b82f6'; // ฟ้า (ปกติ)
+    if (diffPct < -3) barColor = '#f59e0b'; // ส้ม (ต่ำกว่าเป้า)
+    if (diffPct > 3) barColor = '#10b981';  // เขียว (เกินเป้า)
+
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td class="text-center" style="font-weight:600; color:#fff;">${f.code}</td>
+      <td class="text-center">฿${formatNum(fVal)}</td>
+      <td class="text-center">
+        <div style="display:flex; align-items:center; justify-content:center; gap:8px;">
+          <span>${currentPct.toFixed(1)}%</span>
+          <div style="width:60px; background:#222; height:6px; border-radius:3px; overflow:hidden;">
+            <div style="width:${Math.min(currentPct, 100)}%; background:${barColor}; height:100%;"></div>
+          </div>
+        </div>
+      </td>
+      <td class="text-center">${targetPct.toFixed(1)}%</td>
+      <td class="text-center ${diffPct >= 0 ? 'text-green' : 'text-red'}" style="font-weight:600;">
+        ${diffPct >= 0 ? '+' : ''}${diffPct.toFixed(1)}%
+      </td>
+    `;
+    tbody.appendChild(tr);
+  });
+}
 
         function handleFormSubmit(e) {
             e.preventDefault();
