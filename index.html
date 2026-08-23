@@ -311,7 +311,7 @@
                                 <table>
                     <thead>
   <tr>
-    <th class="text-center">ชื่อกองทุน</th>
+    <th class="text-left">ชื่อกองทุน</th>
     <th class="text-center">NAV ต้นทุน</th>
     <th class="text-center">NAV ปัจจุบัน</th>
     <th class="text-center">จำนวนหน่วย</th>
@@ -533,7 +533,7 @@ function renderAll() {
 
     const tr = document.createElement('tr');
     tr.innerHTML = `
-      <td class="text-center" style="font-weight:600; color:#fff;">${f.code}</td>
+      <td class="text-left" style="font-weight:600; color:#fff;">${f.code}</td>
       <td class="text-center">฿${f.avgNav.toFixed(4)}</td>
       <td class="text-center text-gold">฿${f.currentNav.toFixed(4)}</td>
       <td class="text-center">${f.units.toLocaleString('th-TH', {minimumFractionDigits:2})}</td>
@@ -565,7 +565,7 @@ function renderAll() {
   if (tableFoot) {
     tableFoot.innerHTML = `
       <tr>
-        <td class="text-center" colspan="4" style="color:#aaa;">รวมทั้งพอร์ต (${funds.length} กองทุน)</td>
+        <td class="text-left" colspan="4" style="color:#aaa;">รวมทั้งพอร์ต (${funds.length} กองทุน)</td>
         <td class="text-center" style="color:#fff;">฿${formatNum(totalVal)}</td>
         <td class="text-center ${totalProfit >= 0 ? 'text-green' : 'text-red'}">
           ${totalProfit >= 0 ? '+' : ''}฿${formatNum(totalProfit)} (${totalProfitPct.toFixed(2)}%)
@@ -641,7 +641,7 @@ function renderRebalanceTable(totalVal) {
 
     const tr = document.createElement('tr');
     tr.innerHTML = `
-      <td class="text-center" style="font-weight:600; color:#fff;">${f.code}</td>
+      <td class="text-left" style="font-weight:600; color:#fff;">${f.code}</td>
       <td class="text-center">฿${formatNum(fVal)}</td>
       <td class="text-center">
         <div style="display:flex; align-items:center; justify-content:center; gap:8px;">
