@@ -335,32 +335,37 @@
             </div>
         </div>
 
-<!-- การ์ดแสดง Bar Chart เปรียบเทียบกำไรสะสม -->
-<div class="card" style="margin-top: 20px;">
-  <div class="card-label"><i class="fa-solid fa-chart-bar"></i> เปรียบเทียบ % กำไรสะสมแต่ละกองทุน</div>
-  <div style="position: relative; height: 220px; width: 100%; margin-top: 10px;">
-    <canvas id="profitBarChart"></canvas>
+<!-- Grid แบ่ง 2 ช่อง วางคู่กันด้านล่างสุด -->
+<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 16px; margin-top: 20px;">
+  
+  <!-- กราฟ Performance by Fund (%) -->
+  <div class="card" style="margin: 0;">
+    <div class="card-label"><i class="fa-solid fa-chart-bar"></i> Performance by Fund (%)</div>
+    <div style="position: relative; height: 230px; width: 100%; margin-top: 10px;">
+      <canvas id="profitBarChart"></canvas>
+    </div>
   </div>
-</div>
 
-<!-- การ์ดบันทึกประวัติมูลค่าพอร์ตรวม -->
-<div class="card" style="margin-top: 20px;">
-  <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
-    <div class="card-label"><i class="fa-solid fa-history"></i> ประวัติมูลค่าพอร์ตรวม (History Log)</div>
-    <button onclick="clearHistoryLog()" class="btn btn-dark btn-sm text-red" style="font-size: 11px;">ล้างประวัติ</button>
+  <!-- ตาราง History Log -->
+  <div class="card" style="margin: 0;">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+      <div class="card-label"><i class="fa-solid fa-history"></i> Portfolio Value History Log</div>
+      <button onclick="clearHistoryLog()" class="btn btn-dark btn-sm text-red" style="font-size: 11px;">ล้างประวัติ</button>
+    </div>
+    <div class="table-responsive" style="max-height: 230px; overflow-y: auto;">
+      <table class="table">
+        <thead>
+          <tr>
+            <th class="text-left">Date</th>
+            <th class="text-center">Portfolio Value (฿)</th>
+            <th class="text-center">Total Profit/Loss (฿)</th>
+          </tr>
+        </thead>
+        <tbody id="historyTableBody"></tbody>
+      </table>
+    </div>
   </div>
-  <div class="table-responsive" style="max-height: 180px; overflow-y: auto;">
-    <table class="table">
-      <thead>
-        <tr>
-          <th class="text-left">วันที่บันทึก</th>
-          <th class="text-center">มูลค่าพอร์ตรวม</th>
-          <th class="text-center">กำไรสะสม</th>
-        </tr>
-      </thead>
-      <tbody id="historyTableBody"></tbody>
-    </table>
-  </div>
+
 </div>
             
     </main>
@@ -810,6 +815,7 @@ function renderRebalanceTable(totalVal) {
 }
     
 // --- 1. วาด Bar Chart เปรียบเทียบ % กำไรสะสม ---
+
 let profitChartInstance = null;
 function renderProfitChart() {
   const ctx = document.getElementById('profitBarChart');
@@ -819,7 +825,7 @@ function renderProfitChart() {
   const dataPcts = funds.map(f => {
     const cost = f.units * f.avgNav;
     const fVal = f.units * f.currentNav;
-    return cost > 0 ? Number(((fVal - cost) / cost * 100).toFixed(2)) : 0;
+    return cost > 0 ? Number(((fVal - cost) / cost * 100).toFixed(1)) : 0;
   });
 
   const backgroundColors = dataPcts.map(pct => pct >= 0 ? '#10b981' : '#ef4444');
@@ -840,6 +846,9 @@ function renderProfitChart() {
     options: {
       responsive: true,
       maintainAspectRatio: false,
+      layout: {
+        padding: { top: 22 }
+      },
       plugins: {
         legend: { display: false },
         tooltip: {
@@ -855,10 +864,31 @@ function renderProfitChart() {
           grid: { color: 'rgba(255,255,255,0.05)' }
         }
       }
-    }
+    },
+    plugins: [{
+      id: 'topLabels',
+      afterDatasetsDraw(chart) {
+        const { ctx } = chart;
+        chart.data.datasets.forEach((dataset, i) => {
+          const meta = chart.getDatasetMeta(i);
+          meta.data.forEach((bar, index) => {
+            const val = dataset.data[index];
+            const text = (val >= 0 ? '+' : '') + val + '%';
+            ctx.save();
+            ctx.fillStyle = val >= 0 ? '#10b981' : '#ef4444';
+            ctx.font = 'bold 11px sans-serif';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = val >= 0 ? 'bottom' : 'top';
+            const yPos = val >= 0 ? bar.y - 4 : bar.y + 4;
+            ctx.fillText(text, bar.x, yPos);
+            ctx.restore();
+          });
+        });
+      }
+    }]
   });
 }
-
+        
 // --- 2. ระบบบันทึกและแสดงประวัติพอร์ต (History Log) ---
 function logPortfolioHistory(totalVal, totalProfit) {
   if (totalVal <= 0) return;
