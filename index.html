@@ -256,12 +256,12 @@
 
         <div class="grid-4">
             <div class="card">
-                <div class="card-label">มูลค่าพอร์ตรวม</div>
+                <div class="card-label">มูลค่าพอร์ต</div>
                 <div id="totalValue" class="card-val">฿0.00</div>
                 <div class="card-sub" id="cloudSyncInfo">Sync อัตโนมัติข้ามอุปกรณ์</div>
             </div>
             <div class="card">
-                <div class="card-label">กำไรสะสมรวม</div>
+                <div class="card-label">กำไรสะสม</div>
                 <div id="totalProfit" class="card-val text-green">+฿0.00</div>
                 <div id="totalProfitPercent" class="card-sub text-green">+0.00%</div>
             </div>
@@ -300,7 +300,7 @@
     <th class="text-center">NAV ปัจจุบัน</th>
     <th class="text-center">จำนวนหน่วย</th>
     <th class="text-center">มูลค่าปัจจุบัน</th>
-    <th class="text-center">กำไรรวม</th>
+    <th class="text-center">กำไรสะสม</th>
     <th class="text-center">กำไรวันนี้</th>
     <th class="text-center">3 เดือน</th>
     <th class="text-center">ต้นปี (YTD)</th>
@@ -316,13 +316,34 @@
             </div>
         </div>
 
-<!-- ================= โซนที่ 1: กราฟคู่ (Bar Chart + Line Chart) ================= -->
+<!-- ================= 1. ตารางสัดส่วนเป้าหมาย (ยกขึ้นมาเหมือนเดิม) ================= -->
+  <div class="table-card" style="margin-top: 20px;">
+    <div class="table-header">
+      <h3 style="font-size: 15px; color:#fff;"><i class="fa-solid fa-scale-balanced text-blue"></i> ตารางสัดส่วนเป้าหมาย</h3>
+    </div>
+    <div class="table-responsive" style="max-height: 280px; overflow-y: auto;">
+      <table class="table">
+        <thead>
+          <tr>
+            <th class="text-left">ชื่อกองทุน</th>
+            <th class="text-center">มูลค่าปัจจุบัน</th>
+            <th class="text-center">สัดส่วนปัจจุบัน (%)</th>
+            <th class="text-center">สัดส่วนเป้าหมาย (%)</th>
+            <th class="text-center">ส่วนต่าง (%)</th>
+          </tr>
+        </thead>
+        <tbody id="rebalanceTableBody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- ================= 2. โซนกราฟคู่ (Bar Chart + Line Chart) ================= -->
   <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 16px; margin-top: 20px;">
     
     <!-- Bar Chart: เปรียบเทียบ % กำไรกองทุน -->
     <div class="card" style="margin: 0; min-width: 0;">
       <div class="card-label"><i class="fa-solid fa-chart-bar"></i> Performance by Fund (%)</div>
-      <div style="position: relative; height: 220px; width: 100%; margin-top: 10px;">
+      <div style="position: relative; height: 230px; width: 100%; margin-top: 10px;">
         <canvas id="profitBarChart"></canvas>
       </div>
     </div>
@@ -330,57 +351,31 @@
     <!-- Line Chart: เทรนด์การเติบโตของพอร์ต (History Trend) -->
     <div class="card" style="margin: 0; min-width: 0;">
       <div class="card-label"><i class="fa-solid fa-chart-line"></i> Portfolio Trend History</div>
-      <div style="position: relative; height: 220px; width: 100%; margin-top: 10px;">
+      <div style="position: relative; height: 230px; width: 100%; margin-top: 10px;">
         <canvas id="historyLineChart"></canvas>
       </div>
     </div>
 
   </div>
 
-  <!-- ================= โซนที่ 2: ตารางคู่ (ตารางสัดส่วนเป้าหมาย + History Log) ================= -->
-  <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 16px; margin-top: 20px;">
-    
-    <!-- ตารางสัดส่วนเป้าหมาย (Rebalance Table) -->
-    <div class="table-card" style="margin: 0; min-width: 0;">
-      <div class="table-header">
-        <h3 style="font-size: 15px; color:#fff;"><i class="fa-solid fa-scale-balanced text-blue"></i> ตารางสัดส่วนเป้าหมาย</h3>
-      </div>
-      <div class="table-responsive" style="max-height: 220px; overflow-y: auto;">
-        <table class="table">
-          <thead>
-            <tr>
-              <th class="text-left">ชื่อกองทุน</th>
-              <th class="text-center">มูลค่าปัจจุบัน</th>
-              <th class="text-center">สัดส่วนปัจจุบัน (%)</th>
-              <th class="text-center">สัดส่วนเป้าหมาย (%)</th>
-              <th class="text-center">ส่วนต่าง (%)</th>
-            </tr>
-          </thead>
-          <tbody id="rebalanceTableBody"></tbody>
-        </table>
-      </div>
+  <!-- ================= 3. ตาราง Portfolio Value History Log (อยู่ด้านล่างสุด) ================= -->
+  <div class="card" style="margin-top: 20px; min-width: 0;">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+      <div class="card-label"><i class="fa-solid fa-history"></i> Portfolio Value History Log</div>
+      <button onclick="clearHistoryLog()" class="btn btn-dark btn-sm text-red" style="font-size: 11px;">ล้างประวัติ</button>
     </div>
-
-    <!-- ตาราง Portfolio Value History Log -->
-    <div class="card" style="margin: 0; min-width: 0;">
-      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
-        <div class="card-label"><i class="fa-solid fa-history"></i> Portfolio Value History Log</div>
-        <button onclick="clearHistoryLog()" class="btn btn-dark btn-sm text-red" style="font-size: 11px;">ล้างประวัติ</button>
-      </div>
-      <div class="table-responsive" style="max-height: 220px; overflow-y: auto;">
-        <table class="table">
-          <thead>
-            <tr>
-              <th class="text-left">Date</th>
-              <th class="text-center">Portfolio Value (฿)</th>
-              <th class="text-center">Total Profit/Loss (฿)</th>
-            </tr>
-          </thead>
-          <tbody id="historyTableBody"></tbody>
-        </table>
-      </div>
+    <div class="table-responsive" style="max-height: 250px; overflow-y: auto;">
+      <table class="table">
+        <thead>
+          <tr>
+            <th class="text-left">Date</th>
+            <th class="text-center">Portfolio Value (฿)</th>
+            <th class="text-center">Total Profit/Loss (฿)</th>
+          </tr>
+        </thead>
+        <tbody id="historyTableBody"></tbody>
+      </table>
     </div>
-
   </div>
             
     </main>
