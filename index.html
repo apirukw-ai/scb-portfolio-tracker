@@ -333,11 +333,12 @@
       <div class="card-label"><i class="fa-solid fa-history"></i> Portfolio Value History Log</div>
       <button onclick="clearHistoryLog()" class="btn btn-dark btn-sm text-red" style="font-size: 11px;">ล้างประวัติ</button>
     </div>
-    <!-- ================= โซนที่ 1: กราฟคู่ (Bar Chart + Line Chart) ================= -->
+
+      <!-- ================= โซนที่ 1: กราฟคู่ (Bar Chart + Line Chart) ================= -->
   <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 16px; margin-top: 20px;">
     
     <!-- Bar Chart: เปรียบเทียบ % กำไรกองทุน -->
-    <div class="card" style="margin: 0;">
+    <div class="card" style="margin: 0; min-width: 0;">
       <div class="card-label"><i class="fa-solid fa-chart-bar"></i> Performance by Fund (%)</div>
       <div style="position: relative; height: 220px; width: 100%; margin-top: 10px;">
         <canvas id="profitBarChart"></canvas>
@@ -345,7 +346,7 @@
     </div>
 
     <!-- Line Chart: เทรนด์การเติบโตของพอร์ต (History Trend) -->
-    <div class="card" style="margin: 0;">
+    <div class="card" style="margin: 0; min-width: 0;">
       <div class="card-label"><i class="fa-solid fa-chart-line"></i> Portfolio Trend History</div>
       <div style="position: relative; height: 220px; width: 100%; margin-top: 10px;">
         <canvas id="historyLineChart"></canvas>
@@ -358,7 +359,7 @@
   <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 16px; margin-top: 20px;">
     
     <!-- ตารางสัดส่วนเป้าหมาย (Rebalance Table) -->
-    <div class="table-card" style="margin: 0;">
+    <div class="table-card" style="margin: 0; min-width: 0;">
       <div class="table-header">
         <h3 style="font-size: 15px; color:#fff;"><i class="fa-solid fa-scale-balanced text-blue"></i> ตารางสัดส่วนเป้าหมาย</h3>
       </div>
@@ -379,7 +380,7 @@
     </div>
 
     <!-- ตาราง Portfolio Value History Log -->
-    <div class="card" style="margin: 0;">
+    <div class="card" style="margin: 0; min-width: 0;">
       <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
         <div class="card-label"><i class="fa-solid fa-history"></i> Portfolio Value History Log</div>
         <button onclick="clearHistoryLog()" class="btn btn-dark btn-sm text-red" style="font-size: 11px;">ล้างประวัติ</button>
