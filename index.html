@@ -652,6 +652,10 @@ function renderAll() {
 
   // --- 4. อัปเดตตาราง Rebalance ---
   if (typeof renderRebalanceTable === 'function') renderRebalanceTable(totalVal);
+
+    if (typeof renderProfitChart === 'function') renderProfitChart();
+  if (typeof logPortfolioHistory === 'function') logPortfolioHistory(totalVal, totalProfit);
+    
 }
 
 function renderRebalanceTable(totalVal) {
