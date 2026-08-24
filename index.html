@@ -150,10 +150,10 @@
     <div style="font-size: 11px; color: var(--text-muted);">สถานะ: Real-time Cloud Active</div>
   </div>
 
-  <!-- TradingView Widget -->
-  <div class="tradingview-widget-container">
+  <!-- TradingView Ticker Tape (เลื่อนสไลด์เปิดในมือถือได้ 100%) -->
+  <div class="tradingview-widget-container" style="overflow-x: auto; -webkit-overflow-scrolling: touch;">
     <div class="tradingview-widget-container__widget"></div>
-    <script type="text/javascript" src="https://s3.tradingview.com/external-embedding/embed-widget-tickers.js" async>
+    <script type="text/javascript" src="https://s3.tradingview.com/external-embedding/embed-widget-ticker-tape.js" async>
     {
       "symbols": [
         { "proName": "FOREXCOM:SPXUSD", "title": "S&P 500" },
@@ -161,8 +161,9 @@
         { "proName": "NASDAQ:ACWI",     "title": "MSCI ACWI" },
         { "proName": "NASDAQ:AAXJ",     "title": "MSCI Asia ex JP" }
       ],
-      "isTransparent": true,
       "showSymbolLogo": false,
+      "isTransparent": true,
+      "displayMode": "adaptive",
       "colorTheme": "dark",
       "locale": "th_TH"
     }
