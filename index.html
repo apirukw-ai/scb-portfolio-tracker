@@ -144,133 +144,31 @@
 
     <main class="container">
 
-        <section class="card market-card">
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
-                <div style="font-size: 14px; font-weight: 600; color: var(--blue);"><i class="fa-solid fa-globe"></i> ดัชนีตลาดหุ้น</div>
-                <div style="font-size: 11px; color: var(--text-muted);">สถานะ: Real-time Cloud Active</div>
-            </div>
-<!-- ดัชนีตลาดหุ้นสำคัญ (2-Column Mobile Grid) -->
-<style>
-  .indices-grid {
-    display: grid;
-    grid-template-columns: repeat(2, 1fr);
-    gap: 8px;
-    margin-top: 10px;
-  }
-  .index-card {
-    background: rgba(255, 255, 255, 0.03);
-    border: 1px solid rgba(255, 255, 255, 0.07);
-    border-radius: 8px;
-    padding: 10px 12px;
-  }
-  .index-name {
-    font-size: 11px;
-    color: #8b949e;
-    margin-bottom: 6px;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-  }
-  .index-val-container {
-    display: flex;
-    justify-content: space-between;
-    align-items: baseline;
-  }
-  .index-price {
-    font-size: 13px;
-    font-weight: 700;
-    color: #f0f6fc;
-  }
-  .index-change {
-    font-size: 11px;
-    font-weight: 600;
-  }
-  .val-up { color: #2ea44f; }
-  .val-down { color: #f85149; }
-</style>
-
-<div class="indices-grid">
-  <div class="index-card">
-    <div class="index-name">S&P 500 (^GSPC)</div>
-    <div class="index-val-container">
-      <span class="index-price" id="spx-val">--</span>
-      <span class="index-change" id="spx-change">--</span>
-    </div>
+<section class="card market-card">
+  <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+    <div style="font-size: 14px; font-weight: 600; color: var(--blue);"><i class="fa-solid fa-globe"></i> ดัชนีตลาดหุ้น</div>
+    <div style="font-size: 11px; color: var(--text-muted);">สถานะ: Real-time Cloud Active</div>
   </div>
-  <div class="index-card">
-    <div class="index-name">Nasdaq (^IXIC)</div>
-    <div class="index-val-container">
-      <span class="index-price" id="ndx-val">--</span>
-      <span class="index-change" id="ndx-change">--</span>
-    </div>
-  </div>
-  <div class="index-card">
-    <div class="index-name">MSCI ACWI (ACWI)</div>
-    <div class="index-val-container">
-      <span class="index-price" id="acwi-val">--</span>
-      <span class="index-change" id="acwi-change">--</span>
-    </div>
-  </div>
-  <div class="index-card">
-    <div class="index-name">MSCI Asia ex JP (AAXJ)</div>
-    <div class="index-val-container">
-      <span class="index-price" id="aaxj-val">--</span>
-      <span class="index-change" id="aaxj-change">--</span>
-    </div>
-  </div>
-</div>
 
-<script>
-async function fetchMarketIndices() {
-  const symbolsMap = [
-    { tvSymbol: 'AMEX:SPY',    valId: 'gspcPrice', changeId: 'gspcChange' },
-    { tvSymbol: 'NASDAQ:QQQ',   valId: 'ixicPrice', changeId: 'ixicChange' },
-    { tvSymbol: 'AMEX:ACWI',   valId: 'acwiPrice', changeId: 'acwiChange' },
-    { tvSymbol: 'NASDAQ:AAXJ', valId: 'aaxjPrice', changeId: 'aaxjChange' }
-  ];
-
-  try {
-    // ตัด headers ออกเพื่อเลี่ยง CORS Preflight
-    const res = await fetch('https://scanner.tradingview.com/global/scan', {
-      method: 'POST',
-      body: JSON.stringify({
-        symbols: { tickers: symbolsMap.map(s => s.tvSymbol) },
-        columns: ['close', 'change']
-      })
-    });
-
-    if (!res.ok) return;
-    const json = await res.json();
-
-    if (json && json.data) {
-      json.data.forEach(item => {
-        const match = symbolsMap.find(s => s.tvSymbol === item.s);
-        if (match && item.d) {
-          const price = item.d[0];
-          const pct = item.d[1];
-
-          const priceEl = document.getElementById(match.valId);
-          if (priceEl) priceEl.innerText = price.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-
-          const changeEl = document.getElementById(match.changeId);
-          if (changeEl) {
-            changeEl.innerText = (pct >= 0 ? '+' : '') + pct.toFixed(2) + '%';
-            changeEl.className = 'index-change ' + (pct >= 0 ? 'val-up' : 'val-down');
-          }
-        }
-      });
+  <!-- TradingView Widget -->
+  <div class="tradingview-widget-container">
+    <div class="tradingview-widget-container__widget"></div>
+    <script type="text/javascript" src="https://s3.tradingview.com/external-embedding/embed-widget-tickers.js" async>
+    {
+      "symbols": [
+        { "proName": "FOREXCOM:SPXUSD", "title": "S&P 500" },
+        { "proName": "FOREXCOM:NSXUSD", "title": "Nasdaq" },
+        { "proName": "GLOBALPRIME:ACWI", "title": "MSCI ACWI" },
+        { "proName": "AMEX:AAXJ", "title": "MSCI Asia ex JP" }
+      ],
+      "isTransparent": true,
+      "showSymbolLogo": false,
+      "colorTheme": "dark",
+      "locale": "th_TH"
     }
-  } catch (e) {
-    console.error('Error fetching market data:', e);
-  }
-}
-
-fetchMarketIndices();
-setInterval(fetchMarketIndices, 60000);
-</script>
-</div>
-        </section>
-
+    </script>
+  </div>
+</section>
         <div class="grid-4">
             <div class="card">
                 <div class="card-label">มูลค่าพอร์ต</div>
