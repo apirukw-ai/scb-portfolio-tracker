@@ -576,8 +576,16 @@ function renderAll() {
   // --- 3. อัปเดตเวลา NAV ล่าสุด ---
     const lastUpdatedEl = document.getElementById('lastUpdatedText');
   if (lastUpdatedEl) {
-    const today = new Date();
-    const thaiDate = today.toLocaleDateString('th-TH', { day: 'numeric', month: 'short', year: 'numeric' });
+    const now = new Date();
+    
+    // ถ้าเวลาปัจจุบันยังไม่ถึง 19:30 น. ให้ถอยไปแสดงวันทำการล่าสุด
+    if (now.getHours() < 19 || (now.getHours() === 19 && now.getMinutes() < 30)) {
+      now.setDate(now.getDate() - 1);
+      if (now.getDay() === 0) now.setDate(now.getDate() - 2);      // อาทิตย์ -> ถอยไปศุกร์
+      else if (now.getDay() === 6) now.setDate(now.getDate() - 1); // เสาร์ -> ถอยไปศุกร์
+    }
+
+    const thaiDate = now.toLocaleDateString('th-TH', { day: 'numeric', month: 'short', year: 'numeric' });
     lastUpdatedEl.textContent = `${thaiDate} (19:30 น.)`;
   }
 
