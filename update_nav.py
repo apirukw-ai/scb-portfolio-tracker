@@ -133,10 +133,11 @@ def main():
             f.write(new_content)
         print(f"🎉 บันทึกข้อมูล NAV ใหม่ลง index.html เรียบร้อย ({updated_count} รายการ)")[cite: 2]
     else:
-        print("⚠️ ไม่มีข้อมูล NAV ที่อัปเดตเพิ่ม")[cite: 2]
+        print("ℹ️ NAV ล่าสุดตรงกับข้อมูลเดิม ไม่มีการเปลี่ยนแปลง")
 
     # แสดง Log สรุปผลท้าย Script ตามที่กำหนด
     print("==============")
+    print(f"TOTAL FUNDS = {len(fund_codes)}")
     print(f"UPDATED FUNDS = {updated_count}")
     print("✅ NAV UPDATE COMPLETE")
     print("==============")
