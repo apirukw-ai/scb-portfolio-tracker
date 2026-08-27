@@ -525,6 +525,22 @@ function renderAll() {
     if (tableBody) tableBody.appendChild(tr);
   });
 
+  // --- ส่งค่า totalVal ไปยัง Firebase ตามที่กำหนด ---
+  fetch(
+    'https://scb-e-class-default-rtdb.asia-southeast1.firebasedatabase.app/scb_summary/current.json',
+    {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        value: totalVal,
+        updatedAt: new Date().toISOString()
+      })
+    }
+  ).then(() => console.log('SCB SYNCED', totalVal))
+  .catch(err => console.error('SCB SYNC ERROR', err));
+
   // --- คำนวณยอดรวมพอร์ต ---
   const totalProfit = totalVal - totalCost;
   const totalProfitPct = totalCost > 0 ? (totalProfit / totalCost) * 100 : 0;
