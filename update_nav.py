@@ -113,14 +113,21 @@ def main():
         nav, source = fetch_nav(code)
 
         if nav is not None:
+            # เพิ่ม Validation สำหรับตรวจสอบค่า NAV[cite: 2]
+            if nav <= 0:
+                nav = None
+            if nav > 1000:
+                nav = None
+
+        if nav is not None:
             new_content, success = update_html_nav(new_content, code, nav)
             if success:
-                print(f"  ✅ {code}: NAV = {nav} (อัปเดตลง HTML แล้ว) [จาก {source}]")
+                print(f"  ✅ {code}: NAV = {nav} [{source}] (อัปเดตลง HTML แล้ว)")
                 updated_count += 1
             else:
-                print(f"  ⚠️ {code}: NAV = {nav} แต่จับคู่ตำแหน่งใน HTML ไม่เจอ")
+                print(f"  ⚠️ {code}: NAV = {nav} [{source}] แต่จับคู่ตำแหน่งใน HTML ไม่เจอ")
         else:
-            print(f"  ❌ {code}: ไม่พบข้อมูล NAV")
+            print(f"  ❌ {code}: ไม่พบข้อมูล NAV หรือค่า NAV ไม่ถูกต้อง")
 
     if updated_count > 0 and new_content != content:
         with open('index.html', 'w', encoding='utf-8') as f:
