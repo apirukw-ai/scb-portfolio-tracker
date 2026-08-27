@@ -86,30 +86,30 @@ def update_html_nav(content, code, nav):
     return content, False
 
 def main():
-    print("🚀 เริ่มต้นระบบดึงข้อมูล NAV อัตโนมัติ...")[cite: 2]
+    print("🚀 เริ่มต้นระบบดึงข้อมูล NAV อัตโนมัติ...")
 
     try:
         with open('index.html', 'r', encoding='utf-8') as f:
             content = f.read()
-        print("📖 อ่านไฟล์ index.html เรียบร้อย")[cite: 2]
+        print("📖 อ่านไฟล์ index.html เรียบร้อย")
     except Exception as e:
-        print(f"❌ อ่านไฟล์ index.html ไม่สำเร็จ: {e}")[cite: 2]
+        print(f"❌ อ่านไฟล์ index.html ไม่สำเร็จ: {e}")
         return
 
     fund_codes = re.findall(r"code\s*:\s*['\"]([^'\"]+)['\"]", content)
     fund_codes = list(dict.fromkeys(fund_codes))
 
     if not fund_codes:
-        print("❌ ไม่พบรหัสกองทุนในไฟล์ index.html")[cite: 2]
+        print("❌ ไม่พบรหัสกองทุนในไฟล์ index.html")
         return
 
-    print(f"📊 พบรายการกองทุนทั้งหมด {len(fund_codes)} รายการ: {', '.join(fund_codes)}")[cite: 2]
+    print(f"📊 พบรายการกองทุนทั้งหมด {len(fund_codes)} รายการ: {', '.join(fund_codes)}")
 
     updated_count = 0
     new_content = content
 
     for code in fund_codes:
-        print(f"🔍 กำลังดึง NAV ของ: {code} ...")[cite: 2]
+        print(f"🔍 กำลังดึง NAV ของ: {code} ...")
         nav, source = fetch_nav(code)
 
         if nav is not None:
@@ -121,17 +121,17 @@ def main():
         if nav is not None:
             new_content, success = update_html_nav(new_content, code, nav)
             if success:
-                print(f"  ✅ {code}: NAV = {nav} [{source}] (อัปเดตลง HTML แล้ว)")[cite: 2]
+                print(f"  ✅ {code}: NAV = {nav} [{source}] (อัปเดตลง HTML แล้ว)")
                 updated_count += 1
             else:
-                print(f"  ⚠️ {code}: NAV = {nav} [{source}] แต่จับคู่ตำแหน่งใน HTML ไม่เจอ")[cite: 2]
+                print(f"  ⚠️ {code}: NAV = {nav} [{source}] แต่จับคู่ตำแหน่งใน HTML ไม่เจอ")
         else:
-            print(f"  ❌ {code}: ไม่พบข้อมูล NAV หรือค่า NAV ไม่ถูกต้อง")[cite: 2]
+            print(f"  ❌ {code}: ไม่พบข้อมูล NAV หรือค่า NAV ไม่ถูกต้อง")
 
     if updated_count > 0 and new_content != content:
         with open('index.html', 'w', encoding='utf-8') as f:
             f.write(new_content)
-        print(f"🎉 บันทึกข้อมูล NAV ใหม่ลง index.html เรียบร้อย ({updated_count} รายการ)")[cite: 2]
+        print(f"🎉 บันทึกข้อมูล NAV ใหม่ลง index.html เรียบร้อย ({updated_count} รายการ)")
     else:
         print("ℹ️ NAV ล่าสุดตรงกับข้อมูลเดิม ไม่มีการเปลี่ยนแปลง")
 
