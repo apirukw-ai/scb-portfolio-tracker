@@ -509,7 +509,7 @@ function renderAll() {
       <td class="text-left" style="font-weight:600; color:#fff;">${f.code}</td>
       <td class="text-center">฿${f.avgNav.toFixed(4)}</td>
       <td class="text-center text-gold">฿${f.currentNav.toFixed(4)}</td>
-      <td class="text-center">${f.units.toLocaleString('th-TH', {minimumFractionDigits:2})}</td>
+      <td class="text-center">${f.units.toLocaleString('th-TH', {minimumFractionDigits: 4, maximumFractionDigits: 4})}</td>
       <td class="text-center" style="font-weight:600;">฿${formatNum(fVal)}</td>
       <td class="text-center ${profit >= 0 ? 'text-green' : 'text-red'}">${profit >= 0 ? '+' : ''}฿${formatNum(profit)} (${profitPct.toFixed(2)}%)</td>
       <td class="text-center ${dailyPct >= 0 ? 'text-green' : 'text-red'}">
