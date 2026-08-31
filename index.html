@@ -428,37 +428,36 @@
             }
         }
 
-function listenToCloudData() {
-    if (!db) return;
-    const ref = db.ref('ports/' + currentSyncId);
+        function listenToCloudData() {
+            if (!db) return;
+            const ref = db.ref('ports/' + currentSyncId);
 
-    if (activeListener) ref.off('value', activeListener);
+            if (activeListener) ref.off('value', activeListener);
 
-    activeListener = ref.on('value', (snapshot) => {
-        if (snapshot.exists()) {
-            const cloudFunds = snapshot.val();
-            
-            // ดึงค่า NAV ล่าสุดจากไฟล์ HTML มาอัปเดตใส่พอร์ตเสมอ
-            if (Array.isArray(cloudFunds)) {
-                cloudFunds.forEach(item => {
-                    const local = funds.find(f => f.code === item.code);
-                    if (local && local.currentNav) {
-                        item.currentNav = local.currentNav;
+            activeListener = ref.on('value', (snapshot) => {
+                if (snapshot.exists()) {
+                    const cloudFunds = snapshot.val();
+                    
+                    if (Array.isArray(cloudFunds)) {
+                        cloudFunds.forEach(item => {
+                            const local = funds.find(f => f.code === item.code);
+                            if (local && local.currentNav) {
+                                item.currentNav = local.currentNav;
+                            }
+                        });
+                        funds = cloudFunds;
                     }
-                });
-                funds = cloudFunds;
-            }
-        } else {
-            ref.set(funds);
+                } else {
+                    ref.set(funds);
+                }
+                
+                const statusTag = document.getElementById('syncStatusTag');
+                if (statusTag) {
+                    statusTag.innerHTML = `<i class="fa-solid fa-circle text-green" style="font-size: 8px;"></i> Live Real-time Connected`;
+                }
+                renderAll();
+            });
         }
-        
-        const statusTag = document.getElementById('syncStatusTag');
-        if (statusTag) {
-            statusTag.innerHTML = `<i class="fa-solid fa-circle text-green" style="font-size: 8px;"></i> Live Real-time Connected`;
-        }
-        renderAll();
-    });
-}
 
         function saveData() {
             if (db) {
@@ -480,202 +479,176 @@ function listenToCloudData() {
             }
         }
 
-function renderAll() {
-  let totalVal = 0, totalCost = 0, totalValYesterday = 0;
-  let ytdProfitSum = 0, threeMonthProfitSum = 0;
+        function renderAll() {
+          let totalVal = 0, totalCost = 0, totalValYesterday = 0;
+          let ytdProfitSum = 0, threeMonthProfitSum = 0;
 
-  const tableBody = document.getElementById('fundTableBody');
-  if (tableBody) tableBody.innerHTML = '';
+          const tableBody = document.getElementById('fundTableBody');
+          if (tableBody) tableBody.innerHTML = '';
 
-  funds.forEach(f => {
-    const fVal = f.units * f.currentNav;
-    const cost = f.units * f.avgNav;
-    const profit = fVal - cost;
-    const profitPct = f.avgNav > 0 ? ((f.currentNav - f.avgNav) / f.avgNav) * 100 : 0;
+          funds.forEach(f => {
+            const fVal = f.units * f.currentNav;
+            const cost = f.units * f.avgNav;
+            const profit = fVal - cost;
+            const profitPct = f.avgNav > 0 ? ((f.currentNav - f.avgNav) / f.avgNav) * 100 : 0;
 
-    totalVal += fVal;
-    totalCost += cost;
+            totalVal += fVal;
+            totalCost += cost;
 
-    const dailyPct = f.dailyPct || 0;
-    const dailyProfit = fVal - (fVal / (1 + (dailyPct / 100)));
-    const valYesterday = fVal / (1 + (dailyPct / 100));
-    totalValYesterday += valYesterday;
+            const dailyPct = f.dailyPct || 0;
+            const dailyProfit = fVal - (fVal / (1 + (dailyPct / 100)));
+            const valYesterday = fVal / (1 + (dailyPct / 100));
+            totalValYesterday += valYesterday;
 
-    if (f.ytdPct) ytdProfitSum += fVal * (f.ytdPct / 100);
-    if (f.threeMonthPct) threeMonthProfitSum += fVal * (f.threeMonthPct / 100);
+            if (f.ytdPct) ytdProfitSum += fVal * (f.ytdPct / 100);
+            if (f.threeMonthPct) threeMonthProfitSum += fVal * (f.threeMonthPct / 100);
 
-    const tr = document.createElement('tr');
-    tr.innerHTML = `
-      <td class="text-left" style="font-weight:600; color:#fff;">${f.code}</td>
-      <td class="text-center">${f.units.toLocaleString('th-TH', {minimumFractionDigits: 4, maximumFractionDigits: 4})}</td> <!-- ย้ายมาไว้ตรงนี้ -->
-      <td class="text-center">฿${f.avgNav.toFixed(4)}</td>
-      <td class="text-center text-gold">฿${f.currentNav.toFixed(4)}</td>
-      <td class="text-center" style="font-weight:600;">฿${formatNum(fVal)}</td>
-      <td class="text-center ${profit >= 0 ? 'text-green' : 'text-red'}">${profit >= 0 ? '+' : ''}฿${formatNum(profit)} (${profitPct.toFixed(2)}%)</td>
-      <td class="text-center ${dailyPct >= 0 ? 'text-green' : 'text-red'}">
-        ${dailyProfit >= 0 ? '+' : ''}฿${formatNum(dailyProfit)} (${dailyPct >= 0 ? '+' : ''}${dailyPct.toFixed(2)}%)
-      </td>
-      <td class="text-center ${(f.threeMonthPct || 0) >= 0 ? 'text-green' : 'text-red'}">${(f.threeMonthPct || 0) >= 0 ? '+' : ''}${(f.threeMonthPct || 0).toFixed(2)}%</td>
-      <td class="text-center ${(f.ytdPct || 0) >= 0 ? 'text-blue' : 'text-red'}">${(f.ytdPct || 0) >= 0 ? '+' : ''}${(f.ytdPct || 0).toFixed(2)}%</td>
-      <td class="text-center">
-        <button onclick="openFundModal('${f.id}')" class="btn btn-dark btn-sm text-blue"><i class="fa-solid fa-pen"></i></button>
-        <button onclick="deleteFund('${f.id}')" class="btn btn-dark btn-sm text-red"><i class="fa-solid fa-trash"></i></button>
-      </td>
-    `;
-    if (tableBody) tableBody.appendChild(tr);
-  });
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+              <td class="text-left" style="font-weight:600; color:#fff;">${f.code}</td>
+              <td class="text-center">${f.units.toLocaleString('th-TH', {minimumFractionDigits: 4, maximumFractionDigits: 4})}</td>
+              <td class="text-center">฿${f.avgNav.toFixed(4)}</td>
+              <td class="text-center text-gold">฿${f.currentNav.toFixed(4)}</td>
+              <td class="text-center" style="font-weight:600;">฿${formatNum(fVal)}</td>
+              <td class="text-center ${profit >= 0 ? 'text-green' : 'text-red'}">${profit >= 0 ? '+' : ''}฿${formatNum(profit)} (${profitPct.toFixed(2)}%)</td>
+              <td class="text-center ${dailyPct >= 0 ? 'text-green' : 'text-red'}">
+                ${dailyProfit >= 0 ? '+' : ''}฿${formatNum(dailyProfit)} (${dailyPct >= 0 ? '+' : ''}${dailyPct.toFixed(2)}%)
+              </td>
+              <td class="text-center ${(f.threeMonthPct || 0) >= 0 ? 'text-green' : 'text-red'}">${(f.threeMonthPct || 0) >= 0 ? '+' : ''}${(f.threeMonthPct || 0).toFixed(2)}%</td>
+              <td class="text-center ${(f.ytdPct || 0) >= 0 ? 'text-blue' : 'text-red'}">${(f.ytdPct || 0) >= 0 ? '+' : ''}${(f.ytdPct || 0).toFixed(2)}%</td>
+              <td class="text-center">
+                <button onclick="openFundModal('${f.id}')" class="btn btn-dark btn-sm text-blue"><i class="fa-solid fa-pen"></i></button>
+                <button onclick="deleteFund('${f.id}')" class="btn btn-dark btn-sm text-red"><i class="fa-solid fa-trash"></i></button>
+              </td>
+            `;
+            if (tableBody) tableBody.appendChild(tr);
+          });
 
-  // --- ส่งค่า totalVal ไปยัง Firebase ตามที่กำหนด ---
-  fetch(
-    'https://scb-e-class-default-rtdb.asia-southeast1.firebasedatabase.app/scb_summary/current.json',
-    {
-      method: 'PUT',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        value: totalVal,
-        updatedAt: new Date().toISOString()
-      })
-    }
-  ).then(() => console.log('SCB SYNCED', totalVal))
-  .catch(err => console.error('SCB SYNC ERROR', err));
+          fetch(
+            'https://scb-e-class-default-rtdb.asia-southeast1.firebasedatabase.app/scb_summary/current.json',
+            {
+              method: 'PUT',
+              headers: {
+                'Content-Type': 'application/json'
+              },
+              body: JSON.stringify({
+                value: totalVal,
+                updatedAt: new Date().toISOString()
+              })
+            }
+          ).then(() => console.log('SCB SYNCED', totalVal))
+          .catch(err => console.error('SCB SYNC ERROR', err));
 
-  // --- คำนวณยอดรวมพอร์ต ---
-  const totalProfit = totalVal - totalCost;
-  const totalProfitPct = totalCost > 0 ? (totalProfit / totalCost) * 100 : 0;
-  const totalDailyProfit = totalVal - totalValYesterday;
-  const totalDailyPct = totalValYesterday > 0 ? (totalDailyProfit / totalValYesterday) * 100 : 0;
-  const totalYtdPct = totalVal > 0 ? (ytdProfitSum / totalVal) * 100 : 0;
-  const total3mPct = totalVal > 0 ? (threeMonthProfitSum / totalVal) * 100 : 0;
+          const totalProfit = totalVal - totalCost;
+          const totalProfitPct = totalCost > 0 ? (totalProfit / totalCost) * 100 : 0;
+          const totalDailyProfit = totalVal - totalValYesterday;
+          const totalDailyPct = totalValYesterday > 0 ? (totalDailyProfit / totalValYesterday) * 100 : 0;
+          const totalYtdPct = totalVal > 0 ? (ytdProfitSum / totalVal) * 100 : 0;
+          const total3mPct = totalVal > 0 ? (threeMonthProfitSum / totalVal) * 100 : 0;
 
-  // --- 1. อัปเดตสรุปท้ายตาราง (tfoot) ---
-  const tableFoot = document.getElementById('fundTableFoot');
-  if (tableFoot) {
-    tableFoot.innerHTML = `
-      <tr>
-        <td class="text-left" colspan="4" style="color:#aaa;">รวมทั้งพอร์ต (${funds.length} กองทุน)</td>
-        <td class="text-center" style="color:#fff;">฿${formatNum(totalVal)}</td>
-        <td class="text-center ${totalProfit >= 0 ? 'text-green' : 'text-red'}">
-          ${totalProfit >= 0 ? '+' : ''}฿${formatNum(totalProfit)} (${totalProfitPct.toFixed(2)}%)
-        </td>
-        <td class="text-center ${totalDailyProfit >= 0 ? 'text-green' : 'text-red'}">
-          ${totalDailyProfit >= 0 ? '+' : ''}฿${formatNum(totalDailyProfit)} (${totalDailyPct >= 0 ? '+' : ''}${totalDailyPct.toFixed(2)}%)
-        </td>
-        <td class="text-center" colspan="3"></td>
-      </tr>
-    `;
-  }
+          const tableFoot = document.getElementById('fundTableFoot');
+          if (tableFoot) {
+            tableFoot.innerHTML = `
+              <tr>
+                <td class="text-left" colspan="4" style="color:#aaa;">รวมทั้งพอร์ต (${funds.length} กองทุน)</td>
+                <td class="text-center" style="color:#fff;">฿${formatNum(totalVal)}</td>
+                <td class="text-center ${totalProfit >= 0 ? 'text-green' : 'text-red'}">
+                  ${totalProfit >= 0 ? '+' : ''}฿${formatNum(totalProfit)} (${totalProfitPct.toFixed(2)}%)
+                </td>
+                <td class="text-center ${totalDailyProfit >= 0 ? 'text-green' : 'text-red'}">
+                  ${totalDailyProfit >= 0 ? '+' : ''}฿${formatNum(totalDailyProfit)} (${totalDailyPct >= 0 ? '+' : ''}${totalDailyPct.toFixed(2)}%)
+                </td>
+                <td class="text-center" colspan="3"></td>
+              </tr>
+            `;
+          }
 
-  // --- 2. อัปเดตการ์ดด้านบน ---
-  const elTotalVal = document.getElementById('totalValue') || document.getElementById('totalVal');
-  if (elTotalVal) elTotalVal.textContent = '฿' + formatNum(totalVal);
+          const elTotalVal = document.getElementById('totalValue') || document.getElementById('totalVal');
+          if (elTotalVal) elTotalVal.textContent = '฿' + formatNum(totalVal);
 
-  if (document.getElementById('totalProfit')) {
-    const el = document.getElementById('totalProfit');
-    el.textContent = (totalProfit >= 0 ? '+฿' : '-฿') + formatNum(Math.abs(totalProfit));
-    el.className = 'val ' + (totalProfit >= 0 ? 'text-green' : 'text-red');
-  }
-  if (document.getElementById('totalProfitPercent')) {
-    document.getElementById('totalProfitPercent').textContent = `${totalProfitPct >= 0 ? '+' : ''}${totalProfitPct.toFixed(2)}% จากต้นทุน`;
-  }
+          if (document.getElementById('totalProfit')) {
+            const el = document.getElementById('totalProfit');
+            el.textContent = (totalProfit >= 0 ? '+฿' : '-฿') + formatNum(Math.abs(totalProfit));
+            el.className = 'val ' + (totalProfit >= 0 ? 'text-green' : 'text-red');
+          }
+          if (document.getElementById('totalProfitPercent')) {
+            document.getElementById('totalProfitPercent').textContent = `${totalProfitPct >= 0 ? '+' : ''}${totalProfitPct.toFixed(2)}% จากต้นทุน`;
+          }
 
-  if (document.getElementById('dailyReturn')) {
-    const el = document.getElementById('dailyReturn');
-    el.textContent = (totalDailyProfit >= 0 ? '+฿' : '-฿') + formatNum(Math.abs(totalDailyProfit));
-    el.className = 'val ' + (totalDailyProfit >= 0 ? 'text-green' : 'text-red');
-  }
-  if (document.getElementById('dailyReturnPercent')) {
-    document.getElementById('dailyReturnPercent').textContent = `${totalDailyPct >= 0 ? '+' : ''}${totalDailyPct.toFixed(2)}% จากเมื่อวาน`;
-  }
+          if (document.getElementById('dailyReturn')) {
+            const el = document.getElementById('dailyReturn');
+            el.textContent = (totalDailyProfit >= 0 ? '+฿' : '-฿') + formatNum(Math.abs(totalDailyProfit));
+            el.className = 'val ' + (totalDailyProfit >= 0 ? 'text-green' : 'text-red');
+          }
+          if (document.getElementById('dailyReturnPercent')) {
+            document.getElementById('dailyReturnPercent').textContent = `${totalDailyPct >= 0 ? '+' : ''}${totalDailyPct.toFixed(2)}% จากเมื่อวาน`;
+          }
 
-  if (document.getElementById('ytdReturn')) {
-    document.getElementById('ytdReturn').textContent = `${totalYtdPct >= 0 ? '+' : ''}${totalYtdPct.toFixed(2)}% ตั้งแต่ต้นปี`;
-  }
-  if (document.getElementById('threeMonthReturn')) {
-    document.getElementById('threeMonthReturn').textContent = `3 เดือนย้อนหลัง: ${total3mPct >= 0 ? '+' : ''}${total3mPct.toFixed(2)}%`;
-  }
+          if (document.getElementById('ytdReturn')) {
+            document.getElementById('ytdReturn').textContent = `${totalYtdPct >= 0 ? '+' : ''}${totalYtdPct.toFixed(2)}% ตั้งแต่ต้นปี`;
+          }
+          if (document.getElementById('threeMonthReturn')) {
+            document.getElementById('threeMonthReturn').textContent = `3 เดือนย้อนหลัง: ${total3mPct >= 0 ? '+' : ''}${total3mPct.toFixed(2)}%`;
+          }
 
-  if (document.getElementById('fundCountBadge')) {
-    document.getElementById('fundCountBadge').textContent = `${funds.length} กองทุน`;
-  }
+          if (document.getElementById('fundCountBadge')) {
+            document.getElementById('fundCountBadge').textContent = `${funds.length} กองทุน`;
+          }
 
-  // --- 3. อัปเดตเวลา NAV ล่าสุด ---
-    const lastUpdatedEl = document.getElementById('lastUpdatedText');
-  if (lastUpdatedEl) {
-    const now = new Date();
-    
-    // ถ้าเวลาปัจจุบันยังไม่ถึง 19:30 น. ให้ถอยไปแสดงวันทำการล่าสุด
-    if (now.getHours() < 19 || (now.getHours() === 19 && now.getMinutes() < 30)) {
-      now.setDate(now.getDate() - 1);
-      if (now.getDay() === 0) now.setDate(now.getDate() - 2);      // อาทิตย์ -> ถอยไปศุกร์
-      else if (now.getDay() === 6) now.setDate(now.getDate() - 1); // เสาร์ -> ถอยไปศุกร์
-    }
+            const lastUpdatedEl = document.getElementById('lastUpdatedText');
+          if (lastUpdatedEl) {
+            const now = new Date();
+            if (now.getHours() < 19 || (now.getHours() === 19 && now.getMinutes() < 30)) {
+              now.setDate(now.getDate() - 1);
+              if (now.getDay() === 0) now.setDate(now.getDate() - 2);
+              else if (now.getDay() === 6) now.setDate(now.getDate() - 1);
+            }
+            const thaiDate = now.toLocaleDateString('th-TH', { day: 'numeric', month: 'short', year: 'numeric' });
+            lastUpdatedEl.textContent = `${thaiDate} (19:30 น.)`;
+          }
 
-    const thaiDate = now.toLocaleDateString('th-TH', { day: 'numeric', month: 'short', year: 'numeric' });
-    lastUpdatedEl.textContent = `${thaiDate} (19:30 น.)`;
-  }
+          if (typeof renderRebalanceTable === 'function') renderRebalanceTable(totalVal);
+          if (typeof renderProfitChart === 'function') renderProfitChart();
+          if (typeof logPortfolioHistory === 'function') logPortfolioHistory(totalVal, totalProfit);
+        }
 
-  // --- 4. อัปเดตตาราง Rebalance ---
-  if (typeof renderRebalanceTable === 'function') renderRebalanceTable(totalVal);
+        function renderRebalanceTable(totalVal) {
+          const tbody = document.getElementById('rebalanceTableBody');
+          if (!tbody) return;
+          tbody.innerHTML = '';
 
-    if (typeof renderProfitChart === 'function') renderProfitChart();
-  if (typeof logPortfolioHistory === 'function') logPortfolioHistory(totalVal, totalProfit);
-    
-}
+          const sortedFunds = [...funds].sort((a, b) => (b.targetPct || 0) - (a.targetPct || 0));
 
-function renderRebalanceTable(totalVal) {
-  const tbody = document.getElementById('rebalanceTableBody');
-  if (!tbody) return;
-  tbody.innerHTML = '';
+          sortedFunds.forEach(f => {
+            const fVal = f.units * f.currentNav;
+            const currentPct = totalVal > 0 ? (fVal / totalVal) * 100 : 0;
+            const targetPct = f.targetPct || 0;
+            const diffPct = currentPct - targetPct;
 
-// เรียงลำดับข้อมูลตาม targetPct จากมากไปน้อย (Descending)
-  const sortedFunds = [...funds].sort((a, b) => (b.targetPct || 0) - (a.targetPct || 0));
+            let barColor = '#3b82f6'; 
+            if (diffPct < -3) barColor = '#f59e0b'; 
+            if (diffPct > 3) barColor = '#10b981';  
 
-  sortedFunds.forEach(f => {
-    const fVal = f.units * f.currentNav;
-    const currentPct = totalVal > 0 ? (fVal / totalVal) * 100 : 0;
-    const targetPct = f.targetPct || 0;
-    const diffPct = currentPct - targetPct;
-
-    let barColor = '#3b82f6'; 
-    if (diffPct < -3) barColor = '#f59e0b'; 
-    if (diffPct > 3) barColor = '#10b981';  
-
-    const tr = document.createElement('tr');
-    tr.innerHTML = `
-      <td class="text-left" style="font-weight:600; color:#fff;">${f.code}</td>
-      <td class="text-center">฿${formatNum(fVal)}</td>
-      <td class="text-center">
-        <div style="display:flex; align-items:center; justify-content:center; gap:8px;">
-          <span>${currentPct.toFixed(1)}%</span>
-          <div style="width:60px; background:#222; height:6px; border-radius:3px; overflow:hidden;">
-            <div style="width:${Math.min(currentPct, 100)}%; background:${barColor}; height:100%;"></div>
-          </div>
-        </div>
-      </td>
-      <td class="text-center">${targetPct.toFixed(1)}%</td>
-      <td class="text-center ${diffPct >= 0 ? 'text-green' : 'text-red'}" style="font-weight:600;">
-        ${diffPct >= 0 ? '+' : ''}${diffPct.toFixed(1)}%
-      </td>
-    `;
-    tbody.appendChild(tr);
-  });
-}
-
-    
-  funds.forEach(f => {
-    const fVal = f.units * f.currentNav;
-    const currentPct = totalVal > 0 ? (fVal / totalVal) * 100 : 0;
-    const targetPct = f.targetPct || 0;
-    const diffPct = currentPct - targetPct;
-
-    // เลือกสีแถบ Progress Bar ตามสัดส่วน
-    let barColor = '#3b82f6'; // ฟ้า (ปกติ)
-    if (diffPct < -3) barColor = '#f59e0b'; // ส้ม (ต่ำกว่าเป้า)
-    if (diffPct > 3) barColor = '#10b981';  // เขียว (เกินเป้า)
-
-
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+              <td class="text-left" style="font-weight:600; color:#fff;">${f.code}</td>
+              <td class="text-center">฿${formatNum(fVal)}</td>
+              <td class="text-center">
+                <div style="display:flex; align-items:center; justify-content:center; gap:8px;">
+                  <span>${currentPct.toFixed(1)}%</span>
+                  <div style="width:60px; background:#222; height:6px; border-radius:3px; overflow:hidden;">
+                    <div style="width:${Math.min(currentPct, 100)}%; background:${barColor}; height:100%;"></div>
+                  </div>
+                </div>
+              </td>
+              <td class="text-center">${targetPct.toFixed(1)}%</td>
+              <td class="text-center ${diffPct >= 0 ? 'text-green' : 'text-red'}" style="font-weight:600;">
+                ${diffPct >= 0 ? '+' : ''}${diffPct.toFixed(1)}%
+              </td>
+            `;
+            tbody.appendChild(tr);
+          });
+        }
 
         function handleFormSubmit(e) {
             e.preventDefault();
@@ -785,199 +758,195 @@ function renderRebalanceTable(totalVal) {
         function openModal(id) { document.getElementById(id).classList.remove('hidden'); }
         function closeModal(id) { document.getElementById(id).classList.add('hidden'); }
         function formatNum(num) { return Number(num).toLocaleString('th-TH', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
-    if ('serviceWorker' in navigator) {
-  window.addEventListener('load', () => {
-    navigator.serviceWorker.register('./sw.js').catch(err => console.error(err));
-  });
-}
-    
-// --- 1. วาด Bar Chart เปรียบเทียบ % กำไรสะสม ---
-
-let profitChartInstance = null;
-function renderProfitChart() {
-  const ctx = document.getElementById('profitBarChart');
-  if (!ctx) return;
-
-  const labels = funds.map(f => f.code);
-  const dataPcts = funds.map(f => {
-    const cost = f.units * f.avgNav;
-    const fVal = f.units * f.currentNav;
-    return cost > 0 ? Number(((fVal - cost) / cost * 100).toFixed(1)) : 0;
-  });
-
-  const backgroundColors = dataPcts.map(pct => pct >= 0 ? '#10b981' : '#ef4444');
-
-  if (profitChartInstance) profitChartInstance.destroy();
-
-  profitChartInstance = new Chart(ctx, {
-    type: 'bar',
-    data: {
-      labels: labels,
-      datasets: [{
-        label: '% กำไรสะสม',
-        data: dataPcts,
-        backgroundColor: backgroundColors,
-        borderRadius: 4
-      }]
-    },
-    options: {
-      responsive: true,
-      maintainAspectRatio: false,
-      layout: {
-        padding: { top: 22 }
-      },
-      plugins: {
-        legend: { display: false },
-        tooltip: {
-          callbacks: {
-            label: (ctx) => ` กำไรสะสม: ${ctx.raw >= 0 ? '+' : ''}${ctx.raw}%`
-          }
-        }
-      },
-      scales: {
-        x: { ticks: { color: '#888' }, grid: { display: false } },
-        y: { 
-          ticks: { color: '#888', callback: (v) => v + '%' },
-          grid: { color: 'rgba(255,255,255,0.05)' }
-        }
-      }
-    },
-    plugins: [{
-      id: 'topLabels',
-      afterDatasetsDraw(chart) {
-        const { ctx } = chart;
-        chart.data.datasets.forEach((dataset, i) => {
-          const meta = chart.getDatasetMeta(i);
-          meta.data.forEach((bar, index) => {
-            const val = dataset.data[index];
-            const text = (val >= 0 ? '+' : '') + val + '%';
-            ctx.save();
-            ctx.fillStyle = val >= 0 ? '#10b981' : '#ef4444';
-            ctx.font = 'bold 11px sans-serif';
-            ctx.textAlign = 'center';
-            ctx.textBaseline = val >= 0 ? 'bottom' : 'top';
-            const yPos = val >= 0 ? bar.y - 4 : bar.y + 4;
-            ctx.fillText(text, bar.x, yPos);
-            ctx.restore();
+        
+        if ('serviceWorker' in navigator) {
+          window.addEventListener('load', () => {
+            navigator.serviceWorker.register('./sw.js').catch(err => console.error(err));
           });
-        });
-      }
-    }]
-  });
-}
-        
-// --- 2. ระบบบันทึกและแสดงประวัติพอร์ต (History Log) ---
-function logPortfolioHistory(totalVal, totalProfit) {
-  if (totalVal <= 0) return;
-  
-  const today = new Date();
-  const dateStr = today.toLocaleDateString('th-TH', { day: '2-digit', month: 'short', year: '2-digit' });
-  let history = JSON.parse(localStorage.getItem('scb_port_history') || '[]');
+        }
+            
+        // --- 1. วาด Bar Chart เปรียบเทียบ % กำไรสะสม ---
+        let profitChartInstance = null;
+        function renderProfitChart() {
+          const ctx = document.getElementById('profitBarChart');
+          if (!ctx) return;
 
-  const existingIdx = history.findIndex(h => h.date === dateStr);
-  const logData = { date: dateStr, val: totalVal, profit: totalProfit };
+          const labels = funds.map(f => f.code);
+          const dataPcts = funds.map(f => {
+            const cost = f.units * f.avgNav;
+            const fVal = f.units * f.currentNav;
+            return cost > 0 ? Number(((fVal - cost) / cost * 100).toFixed(1)) : 0;
+          });
 
-  if (existingIdx >= 0) {
-    history[existingIdx] = logData;
-  } else {
-    history.unshift(logData);
-    if (history.length > 30) history.pop(); // บันทึกสูงสุด 30 วันล่าสุด
-  }
+          const backgroundColors = dataPcts.map(pct => pct >= 0 ? '#10b981' : '#ef4444');
 
-  localStorage.setItem('scb_port_history', JSON.stringify(history));
-  renderPortfolioHistory(history);
-}
+          if (profitChartInstance) profitChartInstance.destroy();
 
-// --- 1. ฟังก์ชันวาด Line Chart แสดงเทรนด์มูลค่าพอร์ตย้อนหลัง ---
-let historyChartInstance = null;
-function renderHistoryLineChart(historyData = null) {
-  const ctx = document.getElementById('historyLineChart');
-  if (!ctx) return;
+          profitChartInstance = new Chart(ctx, {
+            type: 'bar',
+            data: {
+              labels: labels,
+              datasets: [{
+                label: '% กำไรสะสม',
+                data: dataPcts,
+                backgroundColor: backgroundColors,
+                borderRadius: 4
+              }]
+            },
+            options: {
+              responsive: true,
+              maintainAspectRatio: false,
+              layout: {
+                padding: { top: 22 }
+              },
+              plugins: {
+                legend: { display: false },
+                tooltip: {
+                  callbacks: {
+                    label: (ctx) => ` กำไรสะสม: ${ctx.raw >= 0 ? '+' : ''}${ctx.raw}%`
+                  }
+                }
+              },
+              scales: {
+                x: { ticks: { color: '#888' }, grid: { display: false } },
+                y: { 
+                  ticks: { color: '#888', callback: (v) => v + '%' },
+                  grid: { color: 'rgba(255,255,255,0.05)' }
+                }
+              }
+            },
+            plugins: [{
+              id: 'topLabels',
+              afterDatasetsDraw(chart) {
+                const { ctx } = chart;
+                chart.data.datasets.forEach((dataset, i) => {
+                  const meta = chart.getDatasetMeta(i);
+                  meta.data.forEach((bar, index) => {
+                    const val = dataset.data[index];
+                    const text = (val >= 0 ? '+' : '') + val + '%';
+                    ctx.save();
+                    ctx.fillStyle = val >= 0 ? '#10b981' : '#ef4444';
+                    ctx.font = 'bold 11px sans-serif';
+                    ctx.textAlign = 'center';
+                    ctx.textBaseline = val >= 0 ? 'bottom' : 'top';
+                    const yPos = val >= 0 ? bar.y - 4 : bar.y + 4;
+                    ctx.fillText(text, bar.x, yPos);
+                    ctx.restore();
+                  });
+                });
+              }
+            }]
+          });
+        }
+                
+        // --- 2. ระบบบันทึกและแสดงประวัติพอร์ต (History Log) ---
+        function logPortfolioHistory(totalVal, totalProfit) {
+          if (totalVal <= 0) return;
+          
+          const today = new Date();
+          const dateStr = today.toLocaleDateString('th-TH', { day: '2-digit', month: 'short', year: '2-digit' });
+          let history = JSON.parse(localStorage.getItem('scb_port_history') || '[]');
 
-  const history = historyData || JSON.parse(localStorage.getItem('scb_port_history') || '[]');
-  const sortedHistory = [...history].reverse(); // เรียงจากวันที่เก่าไปใหม่
+          const existingIdx = history.findIndex(h => h.date === dateStr);
+          const logData = { date: dateStr, val: totalVal, profit: totalProfit };
 
-  const labels = sortedHistory.map(h => h.date);
-  const dataValues = sortedHistory.map(h => h.val);
+          if (existingIdx >= 0) {
+            history[existingIdx] = logData;
+          } else {
+            history.unshift(logData);
+            if (history.length > 30) history.pop();
+          }
 
-  if (historyChartInstance) historyChartInstance.destroy();
+          localStorage.setItem('scb_port_history', JSON.stringify(history));
+          renderPortfolioHistory(history);
+        }
 
-  historyChartInstance = new Chart(ctx, {
-    type: 'line',
-    data: {
-      labels: labels,
-      datasets: [{
-        label: 'มูลค่าพอร์ต',
-        data: dataValues,
-        borderColor: '#3b82f6',
-        backgroundColor: 'rgba(59, 130, 246, 0.15)',
-        borderWidth: 2,
-        fill: true,
-        tension: 0.3,
-        pointBackgroundColor: '#3b82f6',
-        pointRadius: 3
-      }]
-    },
-    options: {
-      responsive: true,
-      maintainAspectRatio: false,
-      plugins: {
-        legend: { display: false },
-        tooltip: {
-          callbacks: {
-            label: (ctx) => ` มูลค่าพอร์ต: ฿${Number(ctx.raw).toLocaleString('th-TH')}`
+        let historyChartInstance = null;
+        function renderHistoryLineChart(historyData = null) {
+          const ctx = document.getElementById('historyLineChart');
+          if (!ctx) return;
+
+          const history = historyData || JSON.parse(localStorage.getItem('scb_port_history') || '[]');
+          const sortedHistory = [...history].reverse();
+
+          const labels = sortedHistory.map(h => h.date);
+          const dataValues = sortedHistory.map(h => h.val);
+
+          if (historyChartInstance) historyChartInstance.destroy();
+
+          historyChartInstance = new Chart(ctx, {
+            type: 'line',
+            data: {
+              labels: labels,
+              datasets: [{
+                label: 'มูลค่าพอร์ต',
+                data: dataValues,
+                borderColor: '#3b82f6',
+                backgroundColor: 'rgba(59, 130, 246, 0.15)',
+                borderWidth: 2,
+                fill: true,
+                tension: 0.3,
+                pointBackgroundColor: '#3b82f6',
+                pointRadius: 3
+              }]
+            },
+            options: {
+              responsive: true,
+              maintainAspectRatio: false,
+              plugins: {
+                legend: { display: false },
+                tooltip: {
+                  callbacks: {
+                    label: (ctx) => ` มูลค่าพอร์ต: ฿${Number(ctx.raw).toLocaleString('th-TH')}`
+                  }
+                }
+              },
+              scales: {
+                x: { ticks: { color: '#888' }, grid: { display: false } },
+                y: { 
+                  ticks: { 
+                    color: '#888',
+                    callback: (v) => '฿' + (v >= 1000000 ? (v/1000000).toFixed(1) + 'M' : (v/1000).toFixed(0) + 'k')
+                  },
+                  grid: { color: 'rgba(255,255,255,0.05)' }
+                }
+              }
+            }
+          });
+        }
+
+        function renderPortfolioHistory(historyData = null) {
+          const tbody = document.getElementById('historyTableBody');
+          const history = historyData || JSON.parse(localStorage.getItem('scb_port_history') || '[]');
+
+          if (tbody) {
+            tbody.innerHTML = '';
+            if (history.length === 0) {
+              tbody.innerHTML = `<tr><td colspan="3" class="text-center" style="color:#666;">ยังไม่มีประวัติการบันทึก</td></tr>`;
+            } else {
+              history.forEach(h => {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                  <td class="text-left" style="color:#aaa;">${h.date}</td>
+                  <td class="text-center" style="font-weight:600;">฿${formatNum(h.val)}</td>
+                  <td class="text-center ${h.profit >= 0 ? 'text-green' : 'text-red'}">
+                    ${h.profit >= 0 ? '+' : ''}฿${formatNum(h.profit)}
+                  </td>
+                `;
+                tbody.appendChild(tr);
+              });
+            }
+          }
+
+          renderHistoryLineChart(history);
+        }
+
+        function clearHistoryLog() {
+          if (confirm('ต้องการล้างประวัติมูลค่าพอร์ตทั้งหมดหรือไม่?')) {
+            localStorage.removeItem('scb_port_history');
+            renderPortfolioHistory([]);
           }
         }
-      },
-      scales: {
-        x: { ticks: { color: '#888' }, grid: { display: false } },
-        y: { 
-          ticks: { 
-            color: '#888',
-            callback: (v) => '฿' + (v >= 1000000 ? (v/1000000).toFixed(1) + 'M' : (v/1000).toFixed(0) + 'k')
-          },
-          grid: { color: 'rgba(255,255,255,0.05)' }
-        }
-      }
-    }
-  });
-}
-
-// --- 2. อัปเดตฟังก์ชัน renderPortfolioHistory ---
-function renderPortfolioHistory(historyData = null) {
-  const tbody = document.getElementById('historyTableBody');
-  const history = historyData || JSON.parse(localStorage.getItem('scb_port_history') || '[]');
-
-  if (tbody) {
-    tbody.innerHTML = '';
-    if (history.length === 0) {
-      tbody.innerHTML = `<tr><td colspan="3" class="text-center" style="color:#666;">ยังไม่มีประวัติการบันทึก</td></tr>`;
-    } else {
-      history.forEach(h => {
-        const tr = document.createElement('tr');
-        tr.innerHTML = `
-          <td class="text-left" style="color:#aaa;">${h.date}</td>
-          <td class="text-center" style="font-weight:600;">฿${formatNum(h.val)}</td>
-          <td class="text-center ${h.profit >= 0 ? 'text-green' : 'text-red'}">
-            ${h.profit >= 0 ? '+' : ''}฿${formatNum(h.profit)}
-          </td>
-        `;
-        tbody.appendChild(tr);
-      });
-    }
-  }
-
-  // เรียกสั่งวาด Line Chart อัตโนมัติพร้อมกัน
-  renderHistoryLineChart(history);
-}
-
-function clearHistoryLog() {
-  if (confirm('ต้องการล้างประวัติมูลค่าพอร์ตทั้งหมดหรือไม่?')) {
-    localStorage.removeItem('scb_port_history');
-    renderPortfolioHistory([]);
-  }
-}
-        
     </script>
 </body>
 </html>
