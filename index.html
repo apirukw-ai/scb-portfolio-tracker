@@ -417,15 +417,34 @@
                 if (firebaseConfig.apiKey !== "YOUR_API_KEY") {
                     firebase.initializeApp(firebaseConfig);
                     db = firebase.database();
+                    
+                    // 1. ดึง Cache จาก Local มาแสดงผลแก้ขัดทันทีก่อน (ลดอาการหน้าจอว่าง)
+                    const cachedData = localStorage.getItem('scb_store_' + currentSyncId);
+                    if (cachedData) {
+                        try {
+                            funds = JSON.parse(cachedData);
+                            renderAll();
+                        } catch(e) {}
+                    }
+
+                    // 2. เชื่อมต่อฟังข้อมูลจริงจาก Cloud เป็นหลัก (Source of Truth)
                     listenToCloudData();
                 } else {
-                    document.getElementById('syncStatusTag').innerHTML = `<i class="fa-solid fa-circle text-gold" style="font-size: 8px;"></i> Offline Mode (ไม่ได้ใส่ Firebase Config)`;
-                    renderAll();
+                    loadFromLocalStorageOnly();
                 }
             } catch (err) {
                 console.error(err);
-                renderAll();
+                loadFromLocalStorageOnly();
             }
+        }
+
+        function loadFromLocalStorageOnly() {
+            document.getElementById('syncStatusTag').innerHTML = `<i class="fa-solid fa-circle text-gold" style="font-size: 8px;"></i> Offline Mode (Emergency Cache)`;
+            const localData = localStorage.getItem('scb_store_' + currentSyncId);
+            if (localData) {
+                try { funds = JSON.parse(localData); } catch(e) {}
+            }
+            renderAll();
         }
 
         function listenToCloudData() {
@@ -446,6 +465,8 @@
                             }
                         });
                         funds = cloudFunds;
+                        // อัปเดตเก็บลง LocalStorage เป็น Emergency Cache เสมอเมื่อ Cloud ส่งข้อมูลมา
+                        localStorage.setItem('scb_store_' + currentSyncId, JSON.stringify(funds));
                     }
                 } else {
                     ref.set(funds);
@@ -453,29 +474,57 @@
                 
                 const statusTag = document.getElementById('syncStatusTag');
                 if (statusTag) {
-                    statusTag.innerHTML = `<i class="fa-solid fa-circle text-green" style="font-size: 8px;"></i> Live Real-time Connected`;
+                    statusTag.innerHTML = `<i class="fa-solid fa-circle text-green" style="font-size: 8px;"></i> Live Real-time Connected (Cloud Source)`;
                 }
                 renderAll();
+            }, (error) => {
+                console.warn("Cloud connection lost, fallback to LocalStorage cache:", error);
+                loadFromLocalStorageOnly();
             });
         }
 
         function saveData() {
+            // บันทึกลง LocalStorage เป็น Emergency Cache ไว้ก่อนเสมอ
+            localStorage.setItem('scb_store_' + currentSyncId, JSON.stringify(funds));
+
             if (db) {
-                db.ref('ports/' + currentSyncId).set(funds);
+                // บันทึกขึ้น Cloud เป็น Source of Truth หลัก
+                db.ref('ports/' + currentSyncId).set(funds)
+                  .then(() => console.log("Cloud saved successfully"))
+                  .catch(err => alert("บันทึกขึ้น Cloud ไม่สำเร็จ (กำลังใช้งานโหมดออฟไลน์): " + err.message));
             } else {
-                localStorage.setItem('scb_store_' + currentSyncId, JSON.stringify(funds));
                 renderAll();
             }
         }
-
         function changeSyncId(newId) {
             if (!newId.trim()) return;
-            currentSyncId = newId.trim();
+            const cleanId = newId.trim();
+            if (cleanId === currentSyncId) return;
+
+            currentSyncId = cleanId;
             localStorage.setItem('scb_sync_id', currentSyncId);
+
+            // 1. ตัดการเชื่อมต่อ Listener ของ ID เก่าทิ้งก่อน เพื่อป้องกันข้อมูลตีกัน
+            if (db && activeListener) {
+                const oldRef = db.ref('ports/' + currentSyncId); // หรือจะเก็บ ref เก่าไว้ลบ off ก็ได้ครับ
+                // แต่ในระบบเราใช้ db.ref('ports/' + currentSyncId) ข้างใน listenToCloudData อยู่แล้ว
+            }
+
+            // 2. โหลด Cache ฉุกเฉินของ ID ใหม่มาแสดงผลแก้ขัดทันทีก่อน (ถ้ามี)
+            const cachedData = localStorage.getItem('scb_store_' + currentSyncId);
+            if (cachedData) {
+                try {
+                    funds = JSON.parse(cachedData);
+                    renderAll();
+                } catch(e) { funds = []; }
+            } else {
+                funds = [];
+                renderAll();
+            }
+
+            // 3. เริ่มฟังข้อมูลจริงจาก Cloud ของ ID ใหม่
             if (db) {
                 listenToCloudData();
-            } else {
-                renderAll();
             }
         }
 
