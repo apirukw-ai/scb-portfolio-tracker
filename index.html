@@ -223,9 +223,9 @@
                     <thead>
   <tr>
     <th class="text-left">ชื่อกองทุน</th>
+    <th class="text-center">จำนวนหน่วย</th>
     <th class="text-center">NAV ต้นทุน</th>
     <th class="text-center">NAV ปัจจุบัน</th>
-    <th class="text-center">จำนวนหน่วย</th>
     <th class="text-center">มูลค่าปัจจุบัน</th>
     <th class="text-center">กำไรสะสม</th>
     <th class="text-center">กำไรวันนี้</th>
@@ -507,9 +507,9 @@ function renderAll() {
     const tr = document.createElement('tr');
     tr.innerHTML = `
       <td class="text-left" style="font-weight:600; color:#fff;">${f.code}</td>
+      <td class="text-center">${f.units.toLocaleString('th-TH', {minimumFractionDigits: 4, maximumFractionDigits: 4})}</td> <!-- ย้ายมาไว้ตรงนี้ -->
       <td class="text-center">฿${f.avgNav.toFixed(4)}</td>
       <td class="text-center text-gold">฿${f.currentNav.toFixed(4)}</td>
-      <td class="text-center">${f.units.toLocaleString('th-TH', {minimumFractionDigits: 4, maximumFractionDigits: 4})}</td>
       <td class="text-center" style="font-weight:600;">฿${formatNum(fVal)}</td>
       <td class="text-center ${profit >= 0 ? 'text-green' : 'text-red'}">${profit >= 0 ? '+' : ''}฿${formatNum(profit)} (${profitPct.toFixed(2)}%)</td>
       <td class="text-center ${dailyPct >= 0 ? 'text-green' : 'text-red'}">
@@ -629,6 +629,41 @@ function renderRebalanceTable(totalVal) {
   if (!tbody) return;
   tbody.innerHTML = '';
 
+// เรียงลำดับข้อมูลตาม targetPct จากมากไปน้อย (Descending)
+  const sortedFunds = [...funds].sort((a, b) => (b.targetPct || 0) - (a.targetPct || 0));
+
+  sortedFunds.forEach(f => {
+    const fVal = f.units * f.currentNav;
+    const currentPct = totalVal > 0 ? (fVal / totalVal) * 100 : 0;
+    const targetPct = f.targetPct || 0;
+    const diffPct = currentPct - targetPct;
+
+    let barColor = '#3b82f6'; 
+    if (diffPct < -3) barColor = '#f59e0b'; 
+    if (diffPct > 3) barColor = '#10b981';  
+
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td class="text-left" style="font-weight:600; color:#fff;">${f.code}</td>
+      <td class="text-center">฿${formatNum(fVal)}</td>
+      <td class="text-center">
+        <div style="display:flex; align-items:center; justify-content:center; gap:8px;">
+          <span>${currentPct.toFixed(1)}%</span>
+          <div style="width:60px; background:#222; height:6px; border-radius:3px; overflow:hidden;">
+            <div style="width:${Math.min(currentPct, 100)}%; background:${barColor}; height:100%;"></div>
+          </div>
+        </div>
+      </td>
+      <td class="text-center">${targetPct.toFixed(1)}%</td>
+      <td class="text-center ${diffPct >= 0 ? 'text-green' : 'text-red'}" style="font-weight:600;">
+        ${diffPct >= 0 ? '+' : ''}${diffPct.toFixed(1)}%
+      </td>
+    `;
+    tbody.appendChild(tr);
+  });
+}
+
+    
   funds.forEach(f => {
     const fVal = f.units * f.currentNav;
     const currentPct = totalVal > 0 ? (fVal / totalVal) * 100 : 0;
