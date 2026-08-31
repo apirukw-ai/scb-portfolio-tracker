@@ -675,25 +675,7 @@ function renderRebalanceTable(totalVal) {
     if (diffPct < -3) barColor = '#f59e0b'; // ส้ม (ต่ำกว่าเป้า)
     if (diffPct > 3) barColor = '#10b981';  // เขียว (เกินเป้า)
 
-    const tr = document.createElement('tr');
-    tr.innerHTML = `
-      <td class="text-left" style="font-weight:600; color:#fff;">${f.code}</td>
-      <td class="text-center">฿${formatNum(fVal)}</td>
-      <td class="text-center">
-        <div style="display:flex; align-items:center; justify-content:center; gap:8px;">
-          <span>${currentPct.toFixed(1)}%</span>
-          <div style="width:60px; background:#222; height:6px; border-radius:3px; overflow:hidden;">
-            <div style="width:${Math.min(currentPct, 100)}%; background:${barColor}; height:100%;"></div>
-          </div>
-        </div>
-      </td>
-      <td class="text-center">${targetPct.toFixed(1)}%</td>
-      <td class="text-center ${diffPct >= 0 ? 'text-green' : 'text-red'}" style="font-weight:600;">
-        ${diffPct >= 0 ? '+' : ''}${diffPct.toFixed(1)}%
-      </td>
-    `;
-    tbody.appendChild(tr);
-  });
+
 
         function handleFormSubmit(e) {
             e.preventDefault();
