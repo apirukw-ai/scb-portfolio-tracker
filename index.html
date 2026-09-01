@@ -458,14 +458,10 @@
                     const cloudFunds = snapshot.val();
                     
                     if (Array.isArray(cloudFunds)) {
-                        cloudFunds.forEach(item => {
-                            const local = funds.find(f => f.code === item.code);
-                            if (local && local.currentNav) {
-                                item.currentNav = local.currentNav;
-                            }
-                        });
+                        // รับค่าจาก Cloud โดยตรง
                         funds = cloudFunds;
-                        // อัปเดตเก็บลง LocalStorage เป็น Emergency Cache เสมอเมื่อ Cloud ส่งข้อมูลมา
+                        
+                        // อัปเดตลง Emergency Cache เสมอ
                         localStorage.setItem('scb_store_' + currentSyncId, JSON.stringify(funds));
                     }
                 } else {
@@ -482,7 +478,6 @@
                 loadFromLocalStorageOnly();
             });
         }
-
         function saveData() {
             // บันทึกลง LocalStorage เป็น Emergency Cache ไว้ก่อนเสมอ
             localStorage.setItem('scb_store_' + currentSyncId, JSON.stringify(funds));
