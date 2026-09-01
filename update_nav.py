@@ -135,6 +135,26 @@ def main():
     else:
         print("ℹ️ NAV ล่าสุดตรงกับข้อมูลเดิม ไม่มีการเปลี่ยนแปลง")
 
+    # --- อัปเดตข้อมูล NAV ใหม่ขึ้น Firebase Cloud (Source of Truth) ---
+    FIREBASE_URL = "https://scb-e-class-default-rtdb.asia-southeast1.firebasedatabase.app/ports/my-scb-port.json"
+    try:
+        # ดึงข้อมูล funds รายการเพื่อยิงขึ้น Firebase
+        firebase_res = requests.get(FIREBASE_URL).json()
+        if firebase_res and isinstance(firebase_res, list):
+            for item in firebase_res:
+                # อัปเดต NAV ปัจจุบันของกองทุนนั้นๆ
+                code = item.get('code')
+                # ค้นหาค่า NAV ใหม่ที่ดึงมาได้
+                nav_val, _ = fetch_nav(code) if code else (None, None)
+                if nav_val:
+                    item['currentNav'] = nav_val
+                
+            # พ่นค่าใหม่ขึ้น Cloud
+            requests.put(FIREBASE_URL, json=firebase_res)
+            print("  อัปเดต NAV ใหม่ขึ้น Firebase Cloud เรียบร้อยแล้ว")
+    except Exception as e:
+        print(f" เกิดข้อผิดพลาดส่ง Firebase: {e}")
+    
     # แสดง Log สรุปผลท้าย Script ตามที่กำหนด
     print("==============")
     print(f"TOTAL FUNDS = {len(fund_codes)}")
