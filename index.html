@@ -809,79 +809,83 @@
           });
         }
             
-        // --- 1. วาด Bar Chart เปรียบเทียบ % กำไรสะสม ---
-        let profitChartInstance = null;
-        function renderProfitChart() {
-          const ctx = document.getElementById('profitBarChart');
-          if (!ctx) return;
+        // --- 1. วาด Bar Chart เปรียบเทียบ % กำไรสะสม (ทศนิยม 2 ตำแหน่ง) ---
+let profitChartInstance = null;
+function renderProfitChart() {
+  const ctx = document.getElementById('profitBarChart');
+  if (!ctx) return;
 
-          const labels = funds.map(f => f.code);
-          const dataPcts = funds.map(f => {
-            const cost = f.units * f.avgNav;
-            const fVal = f.units * f.currentNav;
-            return cost > 0 ? Number(((fVal - cost) / cost * 100).toFixed(1)) : 0;
-          });
+  const labels = funds.map(f => f.code);
+  const dataPcts = funds.map(f => {
+    const cost = f.units * f.avgNav;
+    const fVal = f.units * f.currentNav;
+    // ปรับให้คำนวณเป็นทศนิยม 2 ตำแหน่ง
+    return cost > 0 ? Number(((fVal - cost) / cost * 100).toFixed(2)) : 0;
+  });
 
-          const backgroundColors = dataPcts.map(pct => pct >= 0 ? '#10b981' : '#ef4444');
+  const backgroundColors = dataPcts.map(pct => pct >= 0 ? '#10b981' : '#ef4444');
 
-          if (profitChartInstance) profitChartInstance.destroy();
+  if (profitChartInstance) profitChartInstance.destroy();
 
-          profitChartInstance = new Chart(ctx, {
-            type: 'bar',
-            data: {
-              labels: labels,
-              datasets: [{
-                label: '% กำไรสะสม',
-                data: dataPcts,
-                backgroundColor: backgroundColors,
-                borderRadius: 4
-              }]
-            },
-            options: {
-              responsive: true,
-              maintainAspectRatio: false,
-              layout: {
-                padding: { top: 22 }
-              },
-              plugins: {
-                legend: { display: false },
-                tooltip: {
-                  callbacks: {
-                    label: (ctx) => ` กำไรสะสม: ${ctx.raw >= 0 ? '+' : ''}${ctx.raw}%`
-                  }
-                }
-              },
-              scales: {
-                x: { ticks: { color: '#888' }, grid: { display: false } },
-                y: { 
-                  ticks: { color: '#888', callback: (v) => v + '%' },
-                  grid: { color: 'rgba(255,255,255,0.05)' }
-                }
-              }
-            },
-            plugins: [{
-              id: 'topLabels',
-              afterDatasetsDraw(chart) {
-                const { ctx } = chart;
-                chart.data.datasets.forEach((dataset, i) => {
-                  const meta = chart.getDatasetMeta(i);
-                  meta.data.forEach((bar, index) => {
-                    const val = dataset.data[index];
-                    const text = (val >= 0 ? '+' : '') + val + '%';
-                    ctx.save();
-                    ctx.fillStyle = val >= 0 ? '#10b981' : '#ef4444';
-                    ctx.font = 'bold 11px sans-serif';
-                    ctx.textAlign = 'center';
-                    ctx.textBaseline = val >= 0 ? 'bottom' : 'top';
-                    const yPos = val >= 0 ? bar.y - 4 : bar.y + 4;
-                    ctx.fillText(text, bar.x, yPos);
-                    ctx.restore();
-                  });
-                });
-              }
-            }]
-          });
+  profitChartInstance = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels: labels,
+      datasets: [{
+        label: '% กำไรสะสม',
+        data: dataPcts,
+        backgroundColor: backgroundColors,
+        borderRadius: 4
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      layout: {
+        padding: { top: 22 }
+      },
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          callbacks: {
+            // แสดงทศนิยม 2 ตำแหน่งใน Tooltip ตอนชี้ที่เสากราฟ
+            label: (ctx) => ` กำไรสะสม: ${ctx.raw >= 0 ? '+' : ''}${Number(ctx.raw).toFixed(2)}%`
+          }
         }
+      },
+      scales: {
+        x: { ticks: { color: '#888' }, grid: { display: false } },
+        y: { 
+          // แสดงทศนิยม 2 ตำแหน่งที่แกน Y
+          ticks: { color: '#888', callback: (v) => Number(v).toFixed(2) + '%' },
+          grid: { color: 'rgba(255,255,255,0.05)' }
+        }
+      }
+    },
+    plugins: [{
+      id: 'topLabels',
+      afterDatasetsDraw(chart) {
+        const { ctx } = chart;
+        chart.data.datasets.forEach((dataset, i) => {
+          const meta = chart.getDatasetMeta(i);
+          meta.data.forEach((bar, index) => {
+            const val = dataset.data[index];
+            // แสดงตัวเลขทศนิยม 2 ตำแหน่งบนหัวเสากราฟ
+            const text = (val >= 0 ? '+' : '') + Number(val).toFixed(2) + '%';
+            ctx.save();
+            ctx.fillStyle = val >= 0 ? '#10b981' : '#ef4444';
+            ctx.font = 'bold 11px sans-serif';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = val >= 0 ? 'bottom' : 'top';
+            const yPos = val >= 0 ? bar.y - 4 : bar.y + 4;
+            ctx.fillText(text, bar.x, yPos);
+            ctx.restore();
+          });
+        });
+      }
+    }]
+  });
+}
                 
         // --- 2. ระบบบันทึกและแสดงประวัติพอร์ต (History Log) ---
         function logPortfolioHistory(totalVal, totalProfit) {
