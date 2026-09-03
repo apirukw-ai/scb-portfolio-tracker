@@ -1,7 +1,22 @@
+import os
 import re
 import requests
 import urllib.parse
 from bs4 import BeautifulSoup
+
+# 📍 1. แทรกส่วนเชื่อมต่อ Firebase Admin SDK
+import firebase_admin
+from firebase_admin import credentials, db
+
+# ตรวจสอบและเชื่อมต่อ Firebase ผ่านไฟล์ serviceAccountKey.json
+if os.path.exists("serviceAccountKey.json"):
+    cred = credentials.Certificate("serviceAccountKey.json")
+    firebase_admin.initialize_app(cred, {
+        'databaseURL': 'https://scb-e-class-default-rtdb.asia-southeast1.firebasedatabase.app/' # ⚠️ ใส่ URL ของ Realtime Database
+    })
+    print("🔑 เชื่อมต่อ Firebase Admin SDK สำเร็จ")
+else:
+    print("⚠️ ไม่พบไฟล์ serviceAccountKey.json (ระบบจะดึง NAV ลง HTML อย่างเดียว)")
 
 HEADERS = {
     'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
@@ -136,25 +151,40 @@ def main():
         print("ℹ️ NAV ล่าสุดตรงกับข้อมูลเดิม ไม่มีการเปลี่ยนแปลง")
 
     # --- อัปเดตข้อมูล NAV ใหม่ขึ้น Firebase Cloud (Source of Truth) ---
-    FIREBASE_URL = "https://scb-e-class-default-rtdb.asia-southeast1.firebasedatabase.app/ports/my-scb-port.json"
     try:
-        # ดึงข้อมูล funds รายการเพื่อยิงขึ้น Firebase
-        firebase_res = requests.get(FIREBASE_URL).json()
-        if firebase_res and isinstance(firebase_res, list):
-            for item in firebase_res:
-                # อัปเดต NAV ปัจจุบันของกองทุนนั้นๆ
-                code = item.get('code')
-                # ค้นหาค่า NAV ใหม่ที่ดึงมาได้
-                nav_val, _ = fetch_nav(code) if code else (None, None)
-                if nav_val:
-                    item['currentNav'] = nav_val
+        # 📍 1. ตรวจสอบว่ามี Admin SDK หรือยัง ถ้ามี ให้ดึงและอัปเดตผ่าน SDK
+        if firebase_admin._apps:
+            ref = db.reference('ports/my-scb-port')
+            firebase_res = ref.get()
+            
+            if firebase_res and isinstance(firebase_res, list):
+                for item in firebase_res:
+                    if isinstance(item, dict):
+                        code = item.get('code')
+                        nav_val, _ = fetch_nav(code) if code else (None, None)
+                        if nav_val:
+                            item['currentNav'] = nav_val
                 
-            # พ่นค่าใหม่ขึ้น Cloud
-            requests.put(FIREBASE_URL, json=firebase_res)
-            print("  อัปเดต NAV ใหม่ขึ้น Firebase Cloud เรียบร้อยแล้ว")
+                # 📍 2. บันทึกข้อมูลกลับขึ้น Firebase ผ่าน Admin SDK (ผ่าน auth != null ทันที)
+                ref.set(firebase_res)
+                print("  ✅ อัปเดต NAV ใหม่ขึ้น Firebase Cloud ผ่าน Admin SDK เรียบร้อยแล้ว")
+        else:
+            # สำรอง: กรณีรันในเครื่องที่ไม่มีไฟล์ serviceAccountKey.json
+            FIREBASE_URL = "https://scb-e-class-default-rtdb.asia-southeast1.firebasedatabase.app/ports/my-scb-port.json"
+            firebase_res = requests.get(FIREBASE_URL).json()
+            if firebase_res and isinstance(firebase_res, list):
+                for item in firebase_res:
+                    if isinstance(item, dict):
+                        code = item.get('code')
+                        nav_val, _ = fetch_nav(code) if code else (None, None)
+                        if nav_val:
+                            item['currentNav'] = nav_val
+                requests.put(FIREBASE_URL, json=firebase_res)
+                print("  อัปเดต NAV ใหม่ขึ้น Firebase Cloud เรียบร้อยแล้ว")
+
     except Exception as e:
         print(f" เกิดข้อผิดพลาดส่ง Firebase: {e}")
-    
+         
     # แสดง Log สรุปผลท้าย Script ตามที่กำหนด
     print("==============")
     print(f"TOTAL FUNDS = {len(fund_codes)}")
