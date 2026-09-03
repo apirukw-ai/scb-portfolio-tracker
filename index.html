@@ -564,24 +564,10 @@
                 <button onclick="openFundModal('${f.id}')" class="btn btn-dark btn-sm text-blue"><i class="fa-solid fa-pen"></i></button>
                 <button onclick="deleteFund('${f.id}')" class="btn btn-dark btn-sm text-red"><i class="fa-solid fa-trash"></i></button>
               </td>
+                       
             `;
             if (tableBody) tableBody.appendChild(tr);
-          });
-
-          fetch(
-            'https://scb-e-class-default-rtdb.asia-southeast1.firebasedatabase.app/scb_summary/current.json',
-            {
-              method: 'PUT',
-              headers: {
-                'Content-Type': 'application/json'
-              },
-              body: JSON.stringify({
-                value: totalVal,
-                updatedAt: new Date().toISOString()
-              })
-            }
-          ).then(() => console.log('SCB SYNCED', totalVal))
-          .catch(err => console.error('SCB SYNC ERROR', err));
+          });       
 
           const totalProfit = totalVal - totalCost;
           const totalProfitPct = totalCost > 0 ? (totalProfit / totalCost) * 100 : 0;
