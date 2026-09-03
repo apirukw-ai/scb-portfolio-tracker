@@ -3,6 +3,7 @@ import re
 import requests
 import urllib.parse
 from bs4 import BeautifulSoup
+from datetime import datetime  # 👈 เพิ่มบรรทัดนี้ครับ
 
 # 📍 1. แทรกส่วนเชื่อมต่อ Firebase Admin SDK
 import firebase_admin
@@ -166,8 +167,16 @@ def main():
                             item['currentNav'] = nav_val
                 
                 # 📍 2. บันทึกข้อมูลกลับขึ้น Firebase ผ่าน Admin SDK (ผ่าน auth != null ทันที)
-                ref.set(firebase_res)
-                print("  ✅ อัปเดต NAV ใหม่ขึ้น Firebase Cloud ผ่าน Admin SDK เรียบร้อยแล้ว")
+        ref.set(firebase_res)
+        print("  ✅ อัปเดต NAV ใหม่ขึ้น Firebase Cloud ผ่าน Admin SDK เรียบร้อยแล้ว")
+
+        # 📍 แทรกบันทึก scb_summary/current เพิ่มตรงนี้
+        ref_summary = db.reference('scb_summary/current')
+        ref_summary.set({
+            'value': sum(item.get('currentNav', 0) * item.get('units', 0) for item in firebase_res if isinstance(item, dict)),
+            'updatedAt': datetime.now().isoformat()
+        })
+        print("  ✅ อัปเดต scb_summary/current ผ่าน Admin SDK เรียบร้อยแล้ว")
         else:
             # สำรอง: กรณีรันในเครื่องที่ไม่มีไฟล์ serviceAccountKey.json
             FIREBASE_URL = "https://scb-e-class-default-rtdb.asia-southeast1.firebasedatabase.app/ports/my-scb-port.json"
