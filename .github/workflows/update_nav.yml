@@ -29,12 +29,18 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install requests beautifulsoup4
+          pip install requests beautifulsoup4 firebase-admin
 
-      - name: Run NAV Update Script
+      # 📍 แทรกสร้างไฟล์ Key จาก GitHub Secret
+      - name: Create Firebase Service Account Key JSON
+        run: |
+          echo '${{ secrets.FIREBASE_KEY }}' > serviceAccountKey.json
+
+      # 📍 สั่งรันสคริปต์อัปเดต NAV (เหลือรอบเดียว)
+      - name: Run Update NAV Script
         run: python update_nav.py
 
-      # 📌 ขั้นตอนสำคัญ: บันทึกและ Push ข้อมูลใหม่กลับเข้าเว็บ
+      # 📌 บันทึกและ Push ข้อมูลใหม่กลับเข้า GitHub Pages
       - name: Commit and Push changes
         run: |
           git config --local user.email "action@github.com"
@@ -42,3 +48,8 @@ jobs:
           git add .
           git commit -m "Auto-update NAVs [skip ci]" || exit 0
           git push
+
+      # 📍 ลบไฟล์ Key ทิ้งหลังจบกระบวนการเพื่อความปลอดภัย
+      - name: Clean up Key
+        if: always()
+        run: rm -f serviceAccountKey.json
