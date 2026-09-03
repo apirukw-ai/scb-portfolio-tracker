@@ -40,12 +40,13 @@ jobs:
       - name: Run Update NAV Script
         run: python update_nav.py
 
-      # 📌 บันทึกและ Push ข้อมูลใหม่กลับเข้า GitHub Pages
+      # 📌 บันทึกและ Push เฉพาะไฟล์ที่ต้องการ (ไม่เอา serviceAccountKey.json)
       - name: Commit and Push changes
         run: |
           git config --local user.email "action@github.com"
           git config --local user.name "GitHub Action"
-          git add .
+          git rm --cached serviceAccountKey.json || true
+          git add index.html
           git commit -m "Auto-update NAVs [skip ci]" || exit 0
           git push
 
