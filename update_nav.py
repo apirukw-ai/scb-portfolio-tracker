@@ -153,12 +153,12 @@ def main():
 
     # --- อัปเดตข้อมูล NAV ใหม่ขึ้น Firebase Cloud (Source of Truth) ---
     try:
-        # 📍 บล็อก if หลักที่ตรวจสอบว่ามี Firebase App หรือไม่
         if firebase_admin._apps:
             ref = db.reference('ports/my-scb-port')
             firebase_res = ref.get()
             
             if firebase_res and isinstance(firebase_res, list):
+                # 1. วนลูปอัปเดต NAV ล่าสุดของแต่ละกองทุน
                 for item in firebase_res:
                     if isinstance(item, dict):
                         code = item.get('code')
@@ -166,17 +166,37 @@ def main():
                         if nav_val:
                             item['currentNav'] = nav_val
 
+                # บันทึกข้อมูลกองทุนทั้งหมดกลับขึ้น Firebase
                 ref.set(firebase_res)
                 print("  ✅ อัปเดต NAV ใหม่ขึ้น Firebase Cloud ผ่าน Admin SDK เรียบร้อยแล้ว")
 
+                # 2. คำนวณมูลค่าปัจจุบัน (total_value) และ ต้นทุนรวม (total_cost) เพื่อหา Gain/Loss
+                total_value = 0
+                total_cost = 0
+                for item in firebase_res:
+                    if isinstance(item, dict):
+                        units = item.get('units', 0)
+                        nav_val = item.get('currentNav', 0)
+                        cost_val = item.get('avgNav', 0)  # ดึงต้นทุนจาก key 'avgNav'
+                        
+                        total_value += nav_val * units
+                        total_cost += cost_val * units
+
+                total_profit = total_value - total_cost
+                total_profit_pct = (total_profit / total_cost * 100) if total_cost > 0 else 0
+
+                # 3. ส่งสรุปพอร์ต (ที่มีทั้ง value, cost, profit, profitPct) ขึ้น scb_summary/current
                 ref_summary = db.reference('scb_summary/current')
                 ref_summary.set({
-                    'value': sum(item.get('currentNav', 0) * item.get('units', 0) for item in firebase_res if isinstance(item, dict)),
+                    'value': total_value,
+                    'cost': total_cost,
+                    'profit': total_profit,
+                    'profitPct': total_profit_pct,
                     'updatedAt': datetime.now().isoformat()
                 })
-                print("  ✅ อัปเดต scb_summary/current ผ่าน Admin SDK เรียบร้อยแล้ว")
+                print("  ✅ อัปเดต scb_summary/current (พร้อมค่า Gain/Loss) เรียบร้อยแล้ว")
 
-        else:  # 👈 บรรทัดที่ 180 ต้องย่อหน้าตรงกับ if firebase_admin._apps: บรรทัดบนสุด
+        else:
             # สำรอง: กรณีรันในเครื่องที่ไม่มีไฟล์ serviceAccountKey.json
             FIREBASE_URL = "https://scb-e-class-default-rtdb.asia-southeast1.firebasedatabase.app/ports/my-scb-port.json"
             # ...
