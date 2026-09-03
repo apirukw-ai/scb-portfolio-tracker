@@ -888,81 +888,109 @@ function renderProfitChart() {
 }
                 
         // --- 2. ระบบบันทึกและแสดงประวัติพอร์ต (History Log) ---
-        function logPortfolioHistory(totalVal, totalProfit) {
-          if (totalVal <= 0) return;
-          
-          const today = new Date();
-          const dateStr = today.toLocaleDateString('th-TH', { day: '2-digit', month: 'short', year: '2-digit' });
-          let history = JSON.parse(localStorage.getItem('scb_port_history') || '[]');
+function logPortfolioHistory(totalVal, totalProfit) {
+  if (totalVal <= 0) return;
+  
+  const today = new Date();
+  const dateStr = today.toLocaleDateString('th-TH', { day: '2-digit', month: 'short', year: '2-digit' });
+  let history = JSON.parse(localStorage.getItem('scb_port_history') || '[]');
 
-          const existingIdx = history.findIndex(h => h.date === dateStr);
-          const logData = { date: dateStr, val: totalVal, profit: totalProfit };
+  const existingIdx = history.findIndex(h => h.date === dateStr);
+  
+  // ✅ คำนวณค่าต้นทุน และเก็บบันทึกเข้า logData
+  const totalCost = totalVal - totalProfit;
+  const logData = { 
+    date: dateStr, 
+    val: totalVal, 
+    profit: totalProfit, 
+    cost: totalCost 
+  };
 
-          if (existingIdx >= 0) {
-            history[existingIdx] = logData;
-          } else {
-            history.unshift(logData);
-            if (history.length > 30) history.pop();
-          }
+  if (existingIdx >= 0) {
+    history[existingIdx] = logData;
+  } else {
+    history.unshift(logData);
+    if (history.length > 30) history.pop();
+  }
 
-          localStorage.setItem('scb_port_history', JSON.stringify(history));
-          renderPortfolioHistory(history);
-        }
+  localStorage.setItem('scb_port_history', JSON.stringify(history));
+  renderPortfolioHistory(history);
+}
 
         let historyChartInstance = null;
-        function renderHistoryLineChart(historyData = null) {
-          const ctx = document.getElementById('historyLineChart');
-          if (!ctx) return;
+function renderHistoryLineChart(historyData = null) {
+  const ctx = document.getElementById('historyLineChart');
+  if (!ctx) return;
 
-          const history = historyData || JSON.parse(localStorage.getItem('scb_port_history') || '[]');
-          const sortedHistory = [...history].reverse();
+  const history = historyData || JSON.parse(localStorage.getItem('scb_port_history') || '[]');
+  const sortedHistory = [...history].reverse();
 
-          const labels = sortedHistory.map(h => h.date);
-          const dataValues = sortedHistory.map(h => h.val);
+  const labels = sortedHistory.map(h => h.date);
+  const dataValues = sortedHistory.map(h => h.val);
+  
+  // 📍 1. เพิ่มการดึงค่าต้นทุน (ถ้าไม่มี cost จะคิดจาก val - profit)
+  const costValues = sortedHistory.map(h => h.cost !== undefined ? h.cost : (h.val - (h.profit || 0)));
 
-          if (historyChartInstance) historyChartInstance.destroy();
+  if (historyChartInstance) historyChartInstance.destroy();
 
-          historyChartInstance = new Chart(ctx, {
-            type: 'line',
-            data: {
-              labels: labels,
-              datasets: [{
-                label: 'มูลค่าพอร์ต',
-                data: dataValues,
-                borderColor: '#3b82f6',
-                backgroundColor: 'rgba(59, 130, 246, 0.15)',
-                borderWidth: 2,
-                fill: true,
-                tension: 0.3,
-                pointBackgroundColor: '#3b82f6',
-                pointRadius: 3
-              }]
-            },
-            options: {
-              responsive: true,
-              maintainAspectRatio: false,
-              plugins: {
-                legend: { display: false },
-                tooltip: {
-                  callbacks: {
-                    label: (ctx) => ` มูลค่าพอร์ต: ฿${Number(ctx.raw).toLocaleString('th-TH')}`
-                  }
-                }
-              },
-              scales: {
-                x: { ticks: { color: '#888' }, grid: { display: false } },
-                y: { 
-                  ticks: { 
-                    color: '#888',
-                    callback: (v) => '฿' + (v >= 1000000 ? (v/1000000).toFixed(1) + 'M' : (v/1000).toFixed(0) + 'k')
-                  },
-                  grid: { color: 'rgba(255,255,255,0.05)' }
-                }
-              }
-            }
-          });
+  historyChartInstance = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels: labels,
+      datasets: [
+        {
+          label: 'มูลค่าพอร์ต',
+          data: dataValues,
+          borderColor: '#3b82f6',
+          backgroundColor: 'rgba(59, 130, 246, 0.15)',
+          borderWidth: 2,
+          fill: true,
+          tension: 0.3,
+          pointBackgroundColor: '#3b82f6',
+          pointRadius: 3
+        },
+        // 📍 2. เพิ่ม Dataset เส้นต้นทุนสะสม (เส้นประสีเทา)
+        {
+          label: 'ต้นทุนสะสม',
+          data: costValues,
+          borderColor: '#94a3b8',
+          borderDash: [5, 5], // เส้นประ
+          borderWidth: 2,
+          fill: false,
+          tension: 0.3,
+          pointBackgroundColor: '#94a3b8',
+          pointRadius: 3
         }
-
+      ]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        // 📍 3. เปิดให้แสดง Legend บอกชื่อเส้นด้านบนกราฟ
+        legend: { 
+          display: true,
+          labels: { color: '#94a3b8', font: { size: 11 } }
+        },
+        tooltip: {
+          callbacks: {
+            label: (ctx) => ` ${ctx.dataset.label}: ฿${Number(ctx.raw).toLocaleString('th-TH')}`
+          }
+        }
+      },
+      scales: {
+        x: { ticks: { color: '#888' }, grid: { display: false } },
+        y: { 
+          ticks: { 
+            color: '#888',
+            callback: (v) => '฿' + (v >= 1000000 ? (v/1000000).toFixed(1) + 'M' : (v/1000).toFixed(0) + 'k')
+          },
+          grid: { color: 'rgba(255,255,255,0.05)' }
+        }
+      }
+    }
+  });
+}
         function renderPortfolioHistory(historyData = null) {
           const tbody = document.getElementById('historyTableBody');
           const history = historyData || JSON.parse(localStorage.getItem('scb_port_history') || '[]');
