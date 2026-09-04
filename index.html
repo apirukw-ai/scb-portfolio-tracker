@@ -385,6 +385,7 @@
 
     <script>
         const DB_URL = "https://scb-e-class-default-rtdb.asia-southeast1.firebasedatabase.app/ports/my-scb-port.json";
+        const HIST_URL = "https://scb-e-class-default-rtdb.asia-southeast1.firebasedatabase.app/scb_history.json";
         let funds = [];
         let historyLogs = [];
         let profitChartInstance = null;
@@ -394,7 +395,6 @@
             loadData();
         });
 
-        // 🌐 1. [NETWORK ONLY] ดึงข้อมูลสดตรงจาก Firebase
         async function loadData() {
             try {
                 console.log('START LOAD SCB DATA (Network Only)');
@@ -405,10 +405,21 @@
                     funds = data;
                 } else if (data && typeof data === 'object') {
                     funds = data.funds || data.items || (Array.isArray(data) ? data : []);
-                    historyLogs = data.history || [];
                 } else {
                     funds = [];
                 }
+
+                try {
+                    const resHist = await fetch(HIST_URL + '?t=' + Date.now());
+                    const histData = await resHist.json();
+                    if (Array.isArray(histData)) {
+                        historyLogs = histData.filter(h => h && typeof h === 'object');
+                    } else if (histData && typeof histData === 'object') {
+                        historyLogs = Object.values(histData);
+                    } else {
+                        historyLogs = [];
+                    }
+                } catch(e) { historyLogs = []; }
 
                 funds = funds.filter(f => f && typeof f === 'object');
                 renderAll();
@@ -418,9 +429,8 @@
             }
         }
 
-        // 🚫 2. ถอนสิทธิ์การบันทึกกลับไปยัง Firebase ฝั่ง Frontend
         function saveData() {
-            console.log("💾 Local action completed. Cloud writes are executed via Server-side/GitHub Actions.");
+            console.log("💾 Local action completed. Server-side handles writes.");
             renderAll();
         }
 
@@ -526,13 +536,6 @@
             document.getElementById('fundCountBadge').textContent = `${funds.length} กองทุน`;
           }
 
-          const lastUpdatedEl = document.getElementById('lastUpdatedText');
-          if (lastUpdatedEl) {
-            const now = new Date();
-            const thaiDate = now.toLocaleDateString('th-TH', { day: 'numeric', month: 'short', year: 'numeric' });
-            lastUpdatedEl.textContent = `${thaiDate} (${now.toLocaleTimeString('th-TH', {hour:'2-digit', minute:'2-digit'})} น.)`;
-          }
-
           renderRebalanceTable(totalVal);
           renderProfitChart();
           renderPortfolioHistory();
@@ -574,56 +577,6 @@
             `;
             tbody.appendChild(tr);
           });
-        }
-
-        function handleFormSubmit(e) {
-            e.preventDefault();
-            const id = document.getElementById('editFundId').value;
-            const code = document.getElementById('fundCodeInput').value.trim().toUpperCase();
-            const avgNav = parseFloat(document.getElementById('avgNavInput').value) || 0;
-            const currentNav = parseFloat(document.getElementById('currentNavInput').value) || 0;
-            const units = parseFloat(document.getElementById('unitsInput').value) || 0;
-            const targetPct = parseFloat(document.getElementById('targetPctInput').value) || 0;
-
-            if (id) {
-                const index = funds.findIndex(f => f.id === id);
-                if (index !== -1) funds[index] = { ...funds[index], code, avgNav, currentNav, units, targetPct };
-            } else {
-                funds.push({ id: 'f_' + Date.now(), code, avgNav, currentNav, units, targetPct });
-            }
-            saveData();
-            closeModal('fundModal');
-        }
-
-        function deleteFund(id) {
-            if (confirm('ยืนยันลบกองทุนนี้?')) {
-                funds = funds.filter(f => f.id !== id);
-                saveData();
-            }
-        }
-
-        function exportJSON() {
-            const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(funds, null, 2));
-            const downloadAnchor = document.createElement('a');
-            downloadAnchor.setAttribute("href", dataStr);
-            downloadAnchor.setAttribute("download", `SCB_Portfolio_${new Date().toISOString().slice(0,10)}.json`);
-            document.body.appendChild(downloadAnchor);
-            downloadAnchor.click();
-            downloadAnchor.remove();
-        }
-
-        function importJSON() {
-            const fileInput = document.getElementById('jsonFileInput');
-            if (!fileInput.files.length) return;
-            const reader = new FileReader();
-            reader.onload = function(e) {
-                try {
-                    funds = JSON.parse(e.target.result);
-                    saveData();
-                    closeModal('importModal');
-                } catch (err) { alert('รูปแบบไฟล์ไม่ถูกต้อง'); }
-            };
-            reader.readAsText(fileInput.files[0]);
         }
 
         function openFundModal(id = null) {
@@ -690,11 +643,11 @@
           });
         }
 
-        function renderHistoryLineChart() {
+        function renderHistoryLineChart(logs) {
           const ctx = document.getElementById('historyLineChart');
           if (!ctx) return;
 
-          const sortedHistory = [...historyLogs].reverse();
+          const sortedHistory = [...logs].reverse();
           const labels = sortedHistory.map(h => h.date || h.timestamp || '');
           const dataValues = sortedHistory.map(h => h.val || h.totalVal || 0);
           const costValues = sortedHistory.map(h => h.cost !== undefined ? h.cost : ((h.val || h.totalVal || 0) - (h.profit || 0)));
@@ -724,27 +677,35 @@
 
         function renderPortfolioHistory() {
           const tbody = document.getElementById('historyTableBody');
+          let logsToRender = historyLogs.length > 0 ? historyLogs : [];
+          
+          if (logsToRender.length === 0 && funds.length > 0) {
+              let currentVal = 0, currentCost = 0;
+              funds.forEach(f => {
+                  currentVal += (f.units || 0) * (f.currentNav || 0);
+                  currentCost += (f.units || 0) * (f.avgNav || 0);
+              });
+              const todayStr = new Date().toLocaleDateString('th-TH', { day: '2-digit', month: 'short', year: '2-digit' });
+              logsToRender = [{ date: todayStr, val: currentVal, profit: currentVal - currentCost, cost: currentCost }];
+          }
+
           if (tbody) {
             tbody.innerHTML = '';
-            if (historyLogs.length === 0) {
-              tbody.innerHTML = `<tr><td colspan="3" class="text-center" style="color:#666;">ยังไม่มีประวัติการบันทึก</td></tr>`;
-            } else {
-              historyLogs.forEach(h => {
-                const tr = document.createElement('tr');
-                const val = h.val || h.totalVal || 0;
-                const profit = h.profit || 0;
-                tr.innerHTML = `
-                  <td class="text-left" style="color:#aaa;">${h.date || h.timestamp || ''}</td>
-                  <td class="text-center" style="font-weight:600;">฿${formatNum(val)}</td>
-                  <td class="text-center ${profit >= 0 ? 'text-green' : 'text-red'}">
-                    ${profit >= 0 ? '+' : ''}฿${formatNum(profit)}
-                  </td>
-                `;
-                tbody.appendChild(tr);
-              });
-            }
+            logsToRender.slice(-10).reverse().forEach(h => {
+              const tr = document.createElement('tr');
+              const val = h.val || h.totalVal || 0;
+              const profit = h.profit || 0;
+              tr.innerHTML = `
+                <td class="text-left" style="color:#aaa;">${h.date || h.timestamp || ''}</td>
+                <td class="text-center" style="font-weight:600;">฿${formatNum(val)}</td>
+                <td class="text-center ${profit >= 0 ? 'text-green' : 'text-red'}">
+                  ${profit >= 0 ? '+' : ''}฿${formatNum(profit)}
+                </td>
+              `;
+              tbody.appendChild(tr);
+            });
           }
-          renderHistoryLineChart();
+          renderHistoryLineChart(logsToRender);
         }
 
         if ('serviceWorker' in navigator) {
