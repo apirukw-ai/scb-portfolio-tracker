@@ -384,143 +384,44 @@
     </div>
 
     <script>
-        // === [ใส่ค่า Firebase Config ของคุณที่นี่] ===
-        const firebaseConfig = {
-            apiKey: "AIzaSyCdox8sOyHIkXHtPgOtirQvOUMDWkIB95Q",
-            authDomain: "scb-e-class.firebaseapp.com",
-            databaseURL: "https://scb-e-class-default-rtdb.asia-southeast1.firebasedatabase.app",
-            projectId: "scb-e-class",
-            storageBucket: "scb-e-class.firebasestorage.app",
-            messagingSenderId: "556009954286",
-            appId: "1:556009954286:web:c7b22d5e28e084a2560cff"
-          };
-
-        let db = null;
-        let activeListener = null;
-        let currentSyncId = localStorage.getItem('scb_sync_id') || 'my-scb-port';
-
-        let funds = [
-            { id: 'f1', code: 'SCBWORLD(E)', avgNav: 14.4937, currentNav: 14.7206, units: 1407.4060, targetPct: 40, dailyPct: 0.35, threeMonthPct: 4.2, ytdPct: 9.5 },
-            { id: 'f2', code: 'SCBNDQ(E)', avgNav: 16.5126, currentNav: 16.8456, units: 1564.7162, targetPct: 25, dailyPct: -0.12, threeMonthPct: 6.8, ytdPct: 14.2 },
-            { id: 'f3', code: 'SCBS&P500(E)', avgNav: 20.1100, currentNav: 44.4112, units: 657.0133, targetPct: 0, dailyPct: 0.18, threeMonthPct: 3.1, ytdPct: 8.9 },
-            { id: 'f4', code: 'SCBAXJ(E)', avgNav: 8.1200, currentNav: 15.5463, units: 3200.9300, targetPct: 20, dailyPct: 0.25, threeMonthPct: 2.1, ytdPct: 6.3 },
-            { id: 'f5', code: 'SCBSEMI(E)', avgNav: 11.2000, currentNav: 36.2693, units: 2214.8220, targetPct: 15, dailyPct: -0.40, threeMonthPct: 8.5, ytdPct: 18.1 }
-        ];
+        const DB_URL = "https://scb-e-class-default-rtdb.asia-southeast1.firebasedatabase.app/ports/my-scb-port.json";
+        let funds = [];
+        let historyLogs = [];
+        let profitChartInstance = null;
+        let historyChartInstance = null;
 
         document.addEventListener('DOMContentLoaded', () => {
-            document.getElementById('syncIdInput').value = currentSyncId;
-            initFirebase();
+            loadData();
         });
 
-        function initFirebase() {
+        // 🌐 1. [NETWORK ONLY] ดึงข้อมูลสดตรงจาก Firebase
+        async function loadData() {
             try {
-                if (firebaseConfig.apiKey !== "YOUR_API_KEY") {
-                    firebase.initializeApp(firebaseConfig);
-                    db = firebase.database();
-                    
-                    // 1. ดึง Cache จาก Local มาแสดงผลแก้ขัดทันทีก่อน (ลดอาการหน้าจอว่าง)
-                    const cachedData = localStorage.getItem('scb_store_' + currentSyncId);
-                    if (cachedData) {
-                        try {
-                            funds = JSON.parse(cachedData);
-                            renderAll();
-                        } catch(e) {}
-                    }
-
-                    // 2. เชื่อมต่อฟังข้อมูลจริงจาก Cloud เป็นหลัก (Source of Truth)
-                    listenToCloudData();
-                } else {
-                    loadFromLocalStorageOnly();
-                }
-            } catch (err) {
-                console.error(err);
-                loadFromLocalStorageOnly();
-            }
-        }
-
-        function loadFromLocalStorageOnly() {
-            document.getElementById('syncStatusTag').innerHTML = `<i class="fa-solid fa-circle text-gold" style="font-size: 8px;"></i> Offline Mode (Emergency Cache)`;
-            const localData = localStorage.getItem('scb_store_' + currentSyncId);
-            if (localData) {
-                try { funds = JSON.parse(localData); } catch(e) {}
-            }
-            renderAll();
-        }
-
-        function listenToCloudData() {
-            if (!db) return;
-            const ref = db.ref('ports/' + currentSyncId);
-
-            if (activeListener) ref.off('value', activeListener);
-
-            activeListener = ref.on('value', (snapshot) => {
-                if (snapshot.exists()) {
-                    const cloudFunds = snapshot.val();
-                    
-                    if (Array.isArray(cloudFunds)) {
-                        // รับค่าจาก Cloud โดยตรง
-                        funds = cloudFunds;
-                        
-                        // อัปเดตลง Emergency Cache เสมอ
-                        localStorage.setItem('scb_store_' + currentSyncId, JSON.stringify(funds));
-                    }
-                } else {
-                    ref.set(funds);
-                }
+                console.log('START LOAD SCB DATA (Network Only)');
+                const res = await fetch(DB_URL + '?t=' + Date.now());
+                const data = await res.json();
                 
-                const statusTag = document.getElementById('syncStatusTag');
-                if (statusTag) {
-                    statusTag.innerHTML = `<i class="fa-solid fa-circle text-green" style="font-size: 8px;"></i> Live Real-time Connected (Cloud Source)`;
+                if (Array.isArray(data)) {
+                    funds = data;
+                } else if (data && typeof data === 'object') {
+                    funds = data.funds || data.items || (Array.isArray(data) ? data : []);
+                    historyLogs = data.history || [];
+                } else {
+                    funds = [];
                 }
+
+                funds = funds.filter(f => f && typeof f === 'object');
                 renderAll();
-            }, (error) => {
-                console.warn("Cloud connection lost, fallback to LocalStorage cache:", error);
-                loadFromLocalStorageOnly();
-            });
+                console.log('☁️ ดึงข้อมูล SCB สดสำเร็จ');
+            } catch (err) {
+                console.error("Load SCB Data Error:", err);
+            }
         }
+
+        // 🚫 2. ถอนสิทธิ์การบันทึกกลับไปยัง Firebase ฝั่ง Frontend
         function saveData() {
-            // บันทึกลง LocalStorage เป็น Emergency Cache ไว้ก่อนเสมอ
-            localStorage.setItem('scb_store_' + currentSyncId, JSON.stringify(funds));
-
-            if (db) {
-                // บันทึกขึ้น Cloud เป็น Source of Truth หลัก
-                db.ref('ports/' + currentSyncId).set(funds)
-                  .then(() => console.log("Cloud saved successfully"))
-                  .catch(err => alert("บันทึกขึ้น Cloud ไม่สำเร็จ (กำลังใช้งานโหมดออฟไลน์): " + err.message));
-            } else {
-                renderAll();
-            }
-        }
-        function changeSyncId(newId) {
-            if (!newId.trim()) return;
-            const cleanId = newId.trim();
-            if (cleanId === currentSyncId) return;
-
-            currentSyncId = cleanId;
-            localStorage.setItem('scb_sync_id', currentSyncId);
-
-            // 1. ตัดการเชื่อมต่อ Listener ของ ID เก่าทิ้งก่อน เพื่อป้องกันข้อมูลตีกัน
-            if (db && activeListener) {
-                const oldRef = db.ref('ports/' + currentSyncId); // หรือจะเก็บ ref เก่าไว้ลบ off ก็ได้ครับ
-                // แต่ในระบบเราใช้ db.ref('ports/' + currentSyncId) ข้างใน listenToCloudData อยู่แล้ว
-            }
-
-            // 2. โหลด Cache ฉุกเฉินของ ID ใหม่มาแสดงผลแก้ขัดทันทีก่อน (ถ้ามี)
-            const cachedData = localStorage.getItem('scb_store_' + currentSyncId);
-            if (cachedData) {
-                try {
-                    funds = JSON.parse(cachedData);
-                    renderAll();
-                } catch(e) { funds = []; }
-            } else {
-                funds = [];
-                renderAll();
-            }
-
-            // 3. เริ่มฟังข้อมูลจริงจาก Cloud ของ ID ใหม่
-            if (db) {
-                listenToCloudData();
-            }
+            console.log("💾 Local action completed. Cloud writes are executed via Server-side/GitHub Actions.");
+            renderAll();
         }
 
         function renderAll() {
@@ -531,8 +432,8 @@
           if (tableBody) tableBody.innerHTML = '';
 
           funds.forEach(f => {
-            const fVal = f.units * f.currentNav;
-            const cost = f.units * f.avgNav;
+            const fVal = (f.units || 0) * (f.currentNav || 0);
+            const cost = (f.units || 0) * (f.avgNav || 0);
             const profit = fVal - cost;
             const profitPct = f.avgNav > 0 ? ((f.currentNav - f.avgNav) / f.avgNav) * 100 : 0;
 
@@ -540,19 +441,20 @@
             totalCost += cost;
 
             const dailyPct = f.dailyPct || 0;
-            const dailyProfit = fVal - (fVal / (1 + (dailyPct / 100)));
             const valYesterday = fVal / (1 + (dailyPct / 100));
             totalValYesterday += valYesterday;
 
             if (f.ytdPct) ytdProfitSum += fVal * (f.ytdPct / 100);
             if (f.threeMonthPct) threeMonthProfitSum += fVal * (f.threeMonthPct / 100);
 
+            const dailyProfit = fVal - valYesterday;
+
             const tr = document.createElement('tr');
             tr.innerHTML = `
-              <td class="text-left" style="font-weight:600; color:#fff;">${f.code}</td>
-              <td class="text-center">${f.units.toLocaleString('th-TH', {minimumFractionDigits: 4, maximumFractionDigits: 4})}</td>
-              <td class="text-center">฿${f.avgNav.toFixed(4)}</td>
-              <td class="text-center text-gold">฿${f.currentNav.toFixed(4)}</td>
+              <td class="text-left" style="font-weight:600; color:#fff;">${f.code || ''}</td>
+              <td class="text-center">${(f.units || 0).toLocaleString('th-TH', {minimumFractionDigits: 4, maximumFractionDigits: 4})}</td>
+              <td class="text-center">฿${(f.avgNav || 0).toFixed(4)}</td>
+              <td class="text-center text-gold">฿${(f.currentNav || 0).toFixed(4)}</td>
               <td class="text-center" style="font-weight:600;">฿${formatNum(fVal)}</td>
               <td class="text-center ${profit >= 0 ? 'text-green' : 'text-red'}">${profit >= 0 ? '+' : ''}฿${formatNum(profit)} (${profitPct.toFixed(2)}%)</td>
               <td class="text-center ${dailyPct >= 0 ? 'text-green' : 'text-red'}">
@@ -564,7 +466,6 @@
                 <button onclick="openFundModal('${f.id}')" class="btn btn-dark btn-sm text-blue"><i class="fa-solid fa-pen"></i></button>
                 <button onclick="deleteFund('${f.id}')" class="btn btn-dark btn-sm text-red"><i class="fa-solid fa-trash"></i></button>
               </td>
-                       
             `;
             if (tableBody) tableBody.appendChild(tr);
           });       
@@ -599,7 +500,7 @@
           if (document.getElementById('totalProfit')) {
             const el = document.getElementById('totalProfit');
             el.textContent = (totalProfit >= 0 ? '+฿' : '-฿') + formatNum(Math.abs(totalProfit));
-            el.className = 'val ' + (totalProfit >= 0 ? 'text-green' : 'text-red');
+            el.className = 'card-val ' + (totalProfit >= 0 ? 'text-green' : 'text-red');
           }
           if (document.getElementById('totalProfitPercent')) {
             document.getElementById('totalProfitPercent').textContent = `${totalProfitPct >= 0 ? '+' : ''}${totalProfitPct.toFixed(2)}% จากต้นทุน`;
@@ -608,7 +509,7 @@
           if (document.getElementById('dailyReturn')) {
             const el = document.getElementById('dailyReturn');
             el.textContent = (totalDailyProfit >= 0 ? '+฿' : '-฿') + formatNum(Math.abs(totalDailyProfit));
-            el.className = 'val ' + (totalDailyProfit >= 0 ? 'text-green' : 'text-red');
+            el.className = 'card-val ' + (totalDailyProfit >= 0 ? 'text-green' : 'text-red');
           }
           if (document.getElementById('dailyReturnPercent')) {
             document.getElementById('dailyReturnPercent').textContent = `${totalDailyPct >= 0 ? '+' : ''}${totalDailyPct.toFixed(2)}% จากเมื่อวาน`;
@@ -625,21 +526,16 @@
             document.getElementById('fundCountBadge').textContent = `${funds.length} กองทุน`;
           }
 
-            const lastUpdatedEl = document.getElementById('lastUpdatedText');
+          const lastUpdatedEl = document.getElementById('lastUpdatedText');
           if (lastUpdatedEl) {
             const now = new Date();
-            if (now.getHours() < 19 || (now.getHours() === 19 && now.getMinutes() < 30)) {
-              now.setDate(now.getDate() - 1);
-              if (now.getDay() === 0) now.setDate(now.getDate() - 2);
-              else if (now.getDay() === 6) now.setDate(now.getDate() - 1);
-            }
             const thaiDate = now.toLocaleDateString('th-TH', { day: 'numeric', month: 'short', year: 'numeric' });
-            lastUpdatedEl.textContent = `${thaiDate} (19:30 น.)`;
+            lastUpdatedEl.textContent = `${thaiDate} (${now.toLocaleTimeString('th-TH', {hour:'2-digit', minute:'2-digit'})} น.)`;
           }
 
-          if (typeof renderRebalanceTable === 'function') renderRebalanceTable(totalVal);
-          if (typeof renderProfitChart === 'function') renderProfitChart();
-          if (typeof logPortfolioHistory === 'function') logPortfolioHistory(totalVal, totalProfit);
+          renderRebalanceTable(totalVal);
+          renderProfitChart();
+          renderPortfolioHistory();
         }
 
         function renderRebalanceTable(totalVal) {
@@ -650,7 +546,7 @@
           const sortedFunds = [...funds].sort((a, b) => (b.targetPct || 0) - (a.targetPct || 0));
 
           sortedFunds.forEach(f => {
-            const fVal = f.units * f.currentNav;
+            const fVal = (f.units || 0) * (f.currentNav || 0);
             const currentPct = totalVal > 0 ? (fVal / totalVal) * 100 : 0;
             const targetPct = f.targetPct || 0;
             const diffPct = currentPct - targetPct;
@@ -661,7 +557,7 @@
 
             const tr = document.createElement('tr');
             tr.innerHTML = `
-              <td class="text-left" style="font-weight:600; color:#fff;">${f.code}</td>
+              <td class="text-left" style="font-weight:600; color:#fff;">${f.code || ''}</td>
               <td class="text-center">฿${formatNum(fVal)}</td>
               <td class="text-center">
                 <div style="display:flex; align-items:center; justify-content:center; gap:8px;">
@@ -684,14 +580,14 @@
             e.preventDefault();
             const id = document.getElementById('editFundId').value;
             const code = document.getElementById('fundCodeInput').value.trim().toUpperCase();
-            const avgNav = parseFloat(document.getElementById('avgNavInput').value);
-            const currentNav = parseFloat(document.getElementById('currentNavInput').value);
-            const units = parseFloat(document.getElementById('unitsInput').value);
-            const targetPct = parseFloat(document.getElementById('targetPctInput').value);
+            const avgNav = parseFloat(document.getElementById('avgNavInput').value) || 0;
+            const currentNav = parseFloat(document.getElementById('currentNavInput').value) || 0;
+            const units = parseFloat(document.getElementById('unitsInput').value) || 0;
+            const targetPct = parseFloat(document.getElementById('targetPctInput').value) || 0;
 
             if (id) {
                 const index = funds.findIndex(f => f.id === id);
-                funds[index] = { ...funds[index], code, avgNav, currentNav, units, targetPct };
+                if (index !== -1) funds[index] = { ...funds[index], code, avgNav, currentNav, units, targetPct };
             } else {
                 funds.push({ id: 'f_' + Date.now(), code, avgNav, currentNav, units, targetPct });
             }
@@ -706,46 +602,11 @@
             }
         }
 
-        async function processOCRImage(file) {
-            if (!file) return;
-            const statusBox = document.getElementById('ocrStatus');
-            statusBox.style.display = 'block';
-
-            try {
-                const worker = await Tesseract.createWorker('eng+tha');
-                const ret = await worker.recognize(file);
-                await worker.terminate();
-
-                const text = ret.data.text;
-                const lines = text.split('\n');
-                let count = 0;
-
-                lines.forEach(line => {
-                    const match = line.match(/(SCB[A-Za-z0-9\&\-\(\)]+)/i);
-                    if (match) {
-                        const code = match[1].toUpperCase();
-                        const nums = line.match(/\d+\.\d+/g);
-                        if (nums && nums.length >= 1) {
-                            const parsedNav = parseFloat(nums[0]);
-                            const existing = funds.find(f => f.code === code);
-                            if (existing) { existing.currentNav = parsedNav; }
-                            else { funds.push({ id: 'f_' + Date.now(), code, avgNav: parsedNav, currentNav: parsedNav, units: 1000, targetPct: 20 }); }
-                            count++;
-                        }
-                    }
-                });
-
-                saveData();
-                alert(`สแกนสำเร็จ ${count} รายการ!`);
-                closeModal('ocrModal');
-            } catch (err) { alert('OCR Error: ' + err.message); }
-        }
-
         function exportJSON() {
             const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(funds, null, 2));
             const downloadAnchor = document.createElement('a');
             downloadAnchor.setAttribute("href", dataStr);
-            downloadAnchor.setAttribute("download", `SCB_Portfolio_${currentSyncId}.json`);
+            downloadAnchor.setAttribute("download", `SCB_Portfolio_${new Date().toISOString().slice(0,10)}.json`);
             document.body.appendChild(downloadAnchor);
             downloadAnchor.click();
             downloadAnchor.remove();
@@ -768,12 +629,14 @@
         function openFundModal(id = null) {
             if (id) {
                 const f = funds.find(item => item.id === id);
-                document.getElementById('editFundId').value = f.id;
-                document.getElementById('fundCodeInput').value = f.code;
-                document.getElementById('avgNavInput').value = f.avgNav;
-                document.getElementById('currentNavInput').value = f.currentNav;
-                document.getElementById('unitsInput').value = f.units;
-                document.getElementById('targetPctInput').value = f.targetPct || 0;
+                if (f) {
+                    document.getElementById('editFundId').value = f.id;
+                    document.getElementById('fundCodeInput').value = f.code || '';
+                    document.getElementById('avgNavInput').value = f.avgNav || '';
+                    document.getElementById('currentNavInput').value = f.currentNav || '';
+                    document.getElementById('unitsInput').value = f.units || '';
+                    document.getElementById('targetPctInput').value = f.targetPct || 0;
+                }
             } else {
                 document.getElementById('editFundId').value = '';
                 document.getElementById('fundCodeInput').value = '';
@@ -787,227 +650,107 @@
 
         function openModal(id) { document.getElementById(id).classList.remove('hidden'); }
         function closeModal(id) { document.getElementById(id).classList.add('hidden'); }
-        function formatNum(num) { return Number(num).toLocaleString('th-TH', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
+        function formatNum(num) { return Number(num || 0).toLocaleString('th-TH', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
         
-        if ('serviceWorker' in navigator) {
-          window.addEventListener('load', () => {
-            navigator.serviceWorker.register('./sw.js').catch(err => console.error(err));
+        function renderProfitChart() {
+          const ctx = document.getElementById('profitBarChart');
+          if (!ctx) return;
+
+          const labels = funds.map(f => f.code);
+          const dataPcts = funds.map(f => {
+            const cost = (f.units || 0) * (f.avgNav || 0);
+            const fVal = (f.units || 0) * (f.currentNav || 0);
+            return cost > 0 ? Number(((fVal - cost) / cost * 100).toFixed(2)) : 0;
+          });
+
+          const backgroundColors = dataPcts.map(pct => pct >= 0 ? '#10b981' : '#ef4444');
+
+          if (profitChartInstance) profitChartInstance.destroy();
+
+          profitChartInstance = new Chart(ctx, {
+            type: 'bar',
+            data: {
+              labels: labels,
+              datasets: [{
+                label: '% กำไรสะสม',
+                data: dataPcts,
+                backgroundColor: backgroundColors,
+                borderRadius: 4
+              }]
+            },
+            options: {
+              responsive: true,
+              maintainAspectRatio: false,
+              plugins: { legend: { display: false } },
+              scales: {
+                x: { ticks: { color: '#888' }, grid: { display: false } },
+                y: { ticks: { color: '#888' }, grid: { color: 'rgba(255,255,255,0.05)' } }
+              }
+            }
           });
         }
-            
-        // --- 1. วาด Bar Chart เปรียบเทียบ % กำไรสะสม (ทศนิยม 2 ตำแหน่ง) ---
-let profitChartInstance = null;
-function renderProfitChart() {
-  const ctx = document.getElementById('profitBarChart');
-  if (!ctx) return;
 
-  const labels = funds.map(f => f.code);
-  const dataPcts = funds.map(f => {
-    const cost = f.units * f.avgNav;
-    const fVal = f.units * f.currentNav;
-    // ปรับให้คำนวณเป็นทศนิยม 2 ตำแหน่ง
-    return cost > 0 ? Number(((fVal - cost) / cost * 100).toFixed(2)) : 0;
-  });
+        function renderHistoryLineChart() {
+          const ctx = document.getElementById('historyLineChart');
+          if (!ctx) return;
 
-  const backgroundColors = dataPcts.map(pct => pct >= 0 ? '#10b981' : '#ef4444');
+          const sortedHistory = [...historyLogs].reverse();
+          const labels = sortedHistory.map(h => h.date || h.timestamp || '');
+          const dataValues = sortedHistory.map(h => h.val || h.totalVal || 0);
+          const costValues = sortedHistory.map(h => h.cost !== undefined ? h.cost : ((h.val || h.totalVal || 0) - (h.profit || 0)));
 
-  if (profitChartInstance) profitChartInstance.destroy();
+          if (historyChartInstance) historyChartInstance.destroy();
 
-  profitChartInstance = new Chart(ctx, {
-    type: 'bar',
-    data: {
-      labels: labels,
-      datasets: [{
-        label: '% กำไรสะสม',
-        data: dataPcts,
-        backgroundColor: backgroundColors,
-        borderRadius: 4
-      }]
-    },
-    options: {
-      responsive: true,
-      maintainAspectRatio: false,
-      layout: {
-        padding: { top: 22 }
-      },
-      plugins: {
-        legend: { display: false },
-        tooltip: {
-          callbacks: {
-            // แสดงทศนิยม 2 ตำแหน่งใน Tooltip ตอนชี้ที่เสากราฟ
-            label: (ctx) => ` กำไรสะสม: ${ctx.raw >= 0 ? '+' : ''}${Number(ctx.raw).toFixed(2)}%`
-          }
-        }
-      },
-      scales: {
-        x: { ticks: { color: '#888' }, grid: { display: false } },
-        y: { 
-          // แสดงทศนิยม 2 ตำแหน่งที่แกน Y
-          ticks: { color: '#888', callback: (v) => Number(v).toFixed(2) + '%' },
-          grid: { color: 'rgba(255,255,255,0.05)' }
-        }
-      }
-    },
-    plugins: [{
-      id: 'topLabels',
-      afterDatasetsDraw(chart) {
-        const { ctx } = chart;
-        chart.data.datasets.forEach((dataset, i) => {
-          const meta = chart.getDatasetMeta(i);
-          meta.data.forEach((bar, index) => {
-            const val = dataset.data[index];
-            // แสดงตัวเลขทศนิยม 2 ตำแหน่งบนหัวเสากราฟ
-            const text = (val >= 0 ? '+' : '') + Number(val).toFixed(2) + '%';
-            ctx.save();
-            ctx.fillStyle = val >= 0 ? '#10b981' : '#ef4444';
-            ctx.font = 'bold 11px sans-serif';
-            ctx.textAlign = 'center';
-            ctx.textBaseline = val >= 0 ? 'bottom' : 'top';
-            const yPos = val >= 0 ? bar.y - 4 : bar.y + 4;
-            ctx.fillText(text, bar.x, yPos);
-            ctx.restore();
+          historyChartInstance = new Chart(ctx, {
+            type: 'line',
+            data: {
+              labels: labels,
+              datasets: [
+                { label: 'มูลค่าพอร์ต', data: dataValues, borderColor: '#3b82f6', backgroundColor: 'rgba(59, 130, 246, 0.15)', borderWidth: 2, fill: true, tension: 0.3 },
+                { label: 'ต้นทุนสะสม', data: costValues, borderColor: '#94a3b8', borderDash: [5, 5], borderWidth: 2, fill: false, tension: 0.3 }
+              ]
+            },
+            options: {
+              responsive: true,
+              maintainAspectRatio: false,
+              plugins: { legend: { display: true, labels: { color: '#94a3b8', font: { size: 11 } } } },
+              scales: {
+                x: { ticks: { color: '#888' }, grid: { display: false } },
+                y: { ticks: { color: '#888' }, grid: { color: 'rgba(255,255,255,0.05)' } }
+              }
+            }
           });
-        });
-      }
-    }]
-  });
-}
-                
-        // --- 2. ระบบบันทึกและแสดงประวัติพอร์ต (History Log) ---
-function logPortfolioHistory(totalVal, totalProfit) {
-  if (totalVal <= 0) return;
-  
-  const today = new Date();
-  const dateStr = today.toLocaleDateString('th-TH', { day: '2-digit', month: 'short', year: '2-digit' });
-  let history = JSON.parse(localStorage.getItem('scb_port_history') || '[]');
-
-  const existingIdx = history.findIndex(h => h.date === dateStr);
-  
-  // ✅ คำนวณค่าต้นทุน และเก็บบันทึกเข้า logData
-  const totalCost = totalVal - totalProfit;
-  const logData = { 
-    date: dateStr, 
-    val: totalVal, 
-    profit: totalProfit, 
-    cost: totalCost 
-  };
-
-  if (existingIdx >= 0) {
-    history[existingIdx] = logData;
-  } else {
-    history.unshift(logData);
-    if (history.length > 30) history.pop();
-  }
-
-  localStorage.setItem('scb_port_history', JSON.stringify(history));
-  renderPortfolioHistory(history);
-}
-
-        let historyChartInstance = null;
-function renderHistoryLineChart(historyData = null) {
-  const ctx = document.getElementById('historyLineChart');
-  if (!ctx) return;
-
-  const history = historyData || JSON.parse(localStorage.getItem('scb_port_history') || '[]');
-  const sortedHistory = [...history].reverse();
-
-  const labels = sortedHistory.map(h => h.date);
-  const dataValues = sortedHistory.map(h => h.val);
-  
-  // 📍 1. เพิ่มการดึงค่าต้นทุน (ถ้าไม่มี cost จะคิดจาก val - profit)
-  const costValues = sortedHistory.map(h => h.cost !== undefined ? h.cost : (h.val - (h.profit || 0)));
-
-  if (historyChartInstance) historyChartInstance.destroy();
-
-  historyChartInstance = new Chart(ctx, {
-    type: 'line',
-    data: {
-      labels: labels,
-      datasets: [
-        {
-          label: 'มูลค่าพอร์ต',
-          data: dataValues,
-          borderColor: '#3b82f6',
-          backgroundColor: 'rgba(59, 130, 246, 0.15)',
-          borderWidth: 2,
-          fill: true,
-          tension: 0.3,
-          pointBackgroundColor: '#3b82f6',
-          pointRadius: 3
-        },
-        // 📍 2. เพิ่ม Dataset เส้นต้นทุนสะสม (เส้นประสีเทา)
-        {
-          label: 'ต้นทุนสะสม',
-          data: costValues,
-          borderColor: '#94a3b8',
-          borderDash: [5, 5], // เส้นประ
-          borderWidth: 2,
-          fill: false,
-          tension: 0.3,
-          pointBackgroundColor: '#94a3b8',
-          pointRadius: 3
         }
-      ]
-    },
-    options: {
-      responsive: true,
-      maintainAspectRatio: false,
-      plugins: {
-        // 📍 3. เปิดให้แสดง Legend บอกชื่อเส้นด้านบนกราฟ
-        legend: { 
-          display: true,
-          labels: { color: '#94a3b8', font: { size: 11 } }
-        },
-        tooltip: {
-          callbacks: {
-            label: (ctx) => ` ${ctx.dataset.label}: ฿${Number(ctx.raw).toLocaleString('th-TH')}`
-          }
-        }
-      },
-      scales: {
-        x: { ticks: { color: '#888' }, grid: { display: false } },
-        y: { 
-          ticks: { 
-            color: '#888',
-            callback: (v) => '฿' + (v >= 1000000 ? (v/1000000).toFixed(1) + 'M' : (v/1000).toFixed(0) + 'k')
-          },
-          grid: { color: 'rgba(255,255,255,0.05)' }
-        }
-      }
-    }
-  });
-}
-        function renderPortfolioHistory(historyData = null) {
+
+        function renderPortfolioHistory() {
           const tbody = document.getElementById('historyTableBody');
-          const history = historyData || JSON.parse(localStorage.getItem('scb_port_history') || '[]');
-
           if (tbody) {
             tbody.innerHTML = '';
-            if (history.length === 0) {
+            if (historyLogs.length === 0) {
               tbody.innerHTML = `<tr><td colspan="3" class="text-center" style="color:#666;">ยังไม่มีประวัติการบันทึก</td></tr>`;
             } else {
-              history.forEach(h => {
+              historyLogs.forEach(h => {
                 const tr = document.createElement('tr');
+                const val = h.val || h.totalVal || 0;
+                const profit = h.profit || 0;
                 tr.innerHTML = `
-                  <td class="text-left" style="color:#aaa;">${h.date}</td>
-                  <td class="text-center" style="font-weight:600;">฿${formatNum(h.val)}</td>
-                  <td class="text-center ${h.profit >= 0 ? 'text-green' : 'text-red'}">
-                    ${h.profit >= 0 ? '+' : ''}฿${formatNum(h.profit)}
+                  <td class="text-left" style="color:#aaa;">${h.date || h.timestamp || ''}</td>
+                  <td class="text-center" style="font-weight:600;">฿${formatNum(val)}</td>
+                  <td class="text-center ${profit >= 0 ? 'text-green' : 'text-red'}">
+                    ${profit >= 0 ? '+' : ''}฿${formatNum(profit)}
                   </td>
                 `;
                 tbody.appendChild(tr);
               });
             }
           }
-
-          renderHistoryLineChart(history);
+          renderHistoryLineChart();
         }
 
-        function clearHistoryLog() {
-          if (confirm('ต้องการล้างประวัติมูลค่าพอร์ตทั้งหมดหรือไม่?')) {
-            localStorage.removeItem('scb_port_history');
-            renderPortfolioHistory([]);
-          }
+        if ('serviceWorker' in navigator) {
+          window.addEventListener('load', () => {
+            navigator.serviceWorker.register('./sw.js').catch(err => console.error(err));
+          });
         }
     </script>
 </body>
