@@ -113,27 +113,41 @@ def main():
     if updated_count > 0 and firebase_admin._apps:
         total_value = 0
         total_cost = 0
+        total_daily_profit = 0  # 📍 เพิ่มตัวแปรเก็บกำไรรายวันรวม
 
         for item in updated_funds_list:
             if isinstance(item, dict):
-                units = item.get('units', 0)
-                nav_val = item.get('currentNav', 0)
-                cost_val = item.get('avgNav', 0)
+                units = float(item.get('units', 0))
+                nav_val = float(item.get('currentNav', 0))
+                cost_val = float(item.get('avgNav', 0))
+                
+                # ดึง NAV ก่อนหน้า (ถ้าไม่มี ให้ใช้ prevNav -> navYesterday -> avgNav ตามลำดับ)
+                prev_nav = float(item.get('prevNav', item.get('navYesterday', cost_val)))
+                
                 total_value += nav_val * units
                 total_cost += cost_val * units
+                
+                # คำนวณกำไรประจำวันของกองทุนนี้: (NAV วันนี้ - NAV วันก่อนหน้า) * จำนวนหน่วย
+                total_daily_profit += (nav_val - prev_nav) * units
 
         total_profit = total_value - total_cost
         total_profit_pct = (total_profit / total_cost * 100) if total_cost > 0 else 0
 
+        # คำนวณ % กำไรประจำวันเทียบกับมูลค่าพอร์ตรวมก่อนหน้า
+        prev_total_value = total_value - total_daily_profit
+        daily_profit_pct = (total_daily_profit / prev_total_value * 100) if prev_total_value > 0 else 0
+
         # 1. บันทึกข้อมูลกองทุน
         db.reference('ports/my-scb-port').set(updated_funds_list)
         
-        # 2. บันทึก Summary
+        # 2. บันทึก Summary (เพิ่ม dailyProfit และ dailyProfitPct ขึ้น Firebase)
         db.reference('scb_summary/current').set({
             'value': total_value,
             'cost': total_cost,
             'profit': total_profit,
             'profitPct': total_profit_pct,
+            'dailyProfit': total_daily_profit,        # 👈 Key กำไรวันนี้ (บาท)
+            'dailyProfitPct': daily_profit_pct,      # 👈 Key % กำไรวันนี้
             'updatedAt': datetime.now().isoformat()
         })
 
@@ -149,6 +163,7 @@ def main():
             'val': total_value,
             'profit': total_profit,
             'cost': total_cost,
+            'dailyProfit': total_daily_profit,
             'timestamp': datetime.now().isoformat()
         }
 
@@ -166,7 +181,7 @@ def main():
             existing_history = existing_history[-60:]
 
         ref_history.set(existing_history)
-        print("  ✅ บันทึก NAV, Summary และ History Snapshot ขึ้น Firebase เรียบร้อยแล้ว")
+        print("   ✅ บันทึก NAV, Summary (พร้อม Daily Profit) และ History Snapshot ขึ้น Firebase เรียบร้อยแล้ว")
 
     print("==============")
     print(f"TOTAL FUNDS = {len(fund_codes)}")
