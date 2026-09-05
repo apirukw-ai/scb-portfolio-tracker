@@ -137,18 +137,26 @@ def main():
         prev_total_value = total_value - total_daily_profit
         daily_profit_pct = (total_daily_profit / prev_total_value * 100) if prev_total_value > 0 else 0
 
-        # 1. บันทึกข้อมูลกองทุน
+        # 📍 กำหนดเวลาประเทศไทย (UTC+7)
+        from datetime import timezone, timedelta
+        tz_th = timezone(timedelta(hours=7))
+        now_th = datetime.now(tz_th)
+        now_th_iso = now_th.isoformat()
+        now_th_str = now_th.strftime('%d/%m/%Y %H:%M:%S')
+
+        # 1. บันทึกข้อมูลกองทุนลง ports/my-scb-port
         db.reference('ports/my-scb-port').set(updated_funds_list)
         
-        # 2. บันทึก Summary (เพิ่ม dailyProfit และ dailyProfitPct ขึ้น Firebase)
+        # 2. บันทึก Summary (ใช้เวลาประเทศไทย UTC+7)
         db.reference('scb_summary/current').set({
             'value': total_value,
             'cost': total_cost,
             'profit': total_profit,
             'profitPct': total_profit_pct,
-            'dailyProfit': total_daily_profit,        # 👈 Key กำไรวันนี้ (บาท)
-            'dailyProfitPct': daily_profit_pct,      # 👈 Key % กำไรวันนี้
-            'updatedAt': datetime.now().isoformat()
+            'dailyProfit': total_daily_profit,
+            'dailyProfitPct': daily_profit_pct,
+            'updatedAt': now_th_iso,
+            'updatedAtStr': now_th_str
         })
 
         # 3. บันทึก History Snapshot
