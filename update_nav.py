@@ -1,24 +1,40 @@
 import os
 import re
+import json
 import requests
 import urllib.parse
 from bs4 import BeautifulSoup
-from datetime import datetime
+from datetime import datetime, timezone, timedelta
 
 import firebase_admin
 from firebase_admin import credentials, db
 
-FIREBASE_SECRET = os.environ.get('FIREBASE_SECRET')
+# ----------------------------------------------------
+# 1. ระบบ เชื่อมต่อ Firebase (รองรับทั้ง Local และ GitHub Actions)
+# ----------------------------------------------------
+db_url = os.environ.get('DB_URL', 'https://scb-e-class-default-rtdb.asia-southeast1.firebasedatabase.app/')
+firebase_key_env = os.environ.get('FIREBASE_KEY')
 
-if os.path.exists("serviceAccountKey.json"):
+if firebase_key_env:
+    try:
+        key_dict = json.loads(firebase_key_env)
+        if isinstance(key_dict, str):
+            key_dict = json.loads(key_dict)
+        cred = credentials.Certificate(key_dict)
+        firebase_admin.initialize_app(cred, {'databaseURL': db_url})
+        print("🔑 เชื่อมต่อ Firebase สำเร็จ (ผ่าน GitHub Secrets)")
+    except Exception as e:
+        print(f"❌ โหลด FIREBASE_KEY จาก Environment Variable ล้มเหลว: {e}")
+elif os.path.exists("serviceAccountKey.json"):
     cred = credentials.Certificate("serviceAccountKey.json")
-    firebase_admin.initialize_app(cred, {
-        'databaseURL': 'https://scb-e-class-default-rtdb.asia-southeast1.firebasedatabase.app/'
-    })
-    print("🔑 เชื่อมต่อ Firebase Admin SDK สำเร็จ")
+    firebase_admin.initialize_app(cred, {'databaseURL': db_url})
+    print("🔑 เชื่อมต่อ Firebase สำเร็จ (ผ่านไฟล์ serviceAccountKey.json)")
 else:
-    print("⚠️ ไม่พบไฟล์ serviceAccountKey.json")
+    print("⚠️ ไม่พบ Credential สำหรับเชื่อมต่อ Firebase")
 
+# ----------------------------------------------------
+# 2. ฟังก์ชันดึงค่า NAV จากภายนอก
+# ----------------------------------------------------
 HEADERS = {
     'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
     'Accept-Language': 'th-TH,th;q=0.9,en-US;q=0.8,en;q=0.7'
@@ -74,6 +90,9 @@ def fetch_nav(code):
         return nav, "Finnomena"
     return None, None
 
+# ----------------------------------------------------
+# 3. ฟังก์ชันหลักในการอัปเดตพอร์ต
+# ----------------------------------------------------
 def main():
     print("🚀 เริ่มต้นระบบดึงข้อมูล NAV อัตโนมัติ (SCB Portfolio)...")
 
@@ -113,7 +132,7 @@ def main():
     if updated_count > 0 and firebase_admin._apps:
         total_value = 0
         total_cost = 0
-        total_daily_profit = 0  # 📍 เพิ่มตัวแปรเก็บกำไรรายวันรวม
+        total_daily_profit = 0
 
         for item in updated_funds_list:
             if isinstance(item, dict):
@@ -121,33 +140,29 @@ def main():
                 nav_val = float(item.get('currentNav', 0))
                 cost_val = float(item.get('avgNav', 0))
                 
-                # ดึง NAV ก่อนหน้า (ถ้าไม่มี ให้ใช้ prevNav -> navYesterday -> avgNav ตามลำดับ)
                 prev_nav = float(item.get('prevNav', item.get('navYesterday', cost_val)))
                 
                 total_value += nav_val * units
                 total_cost += cost_val * units
-                
-                # คำนวณกำไรประจำวันของกองทุนนี้: (NAV วันนี้ - NAV วันก่อนหน้า) * จำนวนหน่วย
                 total_daily_profit += (nav_val - prev_nav) * units
 
         total_profit = total_value - total_cost
         total_profit_pct = (total_profit / total_cost * 100) if total_cost > 0 else 0
 
-        # คำนวณ % กำไรประจำวันเทียบกับมูลค่าพอร์ตรวมก่อนหน้า
         prev_total_value = total_value - total_daily_profit
         daily_profit_pct = (total_daily_profit / prev_total_value * 100) if prev_total_value > 0 else 0
 
-        # 📍 กำหนดเวลาประเทศไทย (UTC+7)
-        from datetime import timezone, timedelta
+        # เวลาประเทศไทย UTC+7
         tz_th = timezone(timedelta(hours=7))
         now_th = datetime.now(tz_th)
         now_th_iso = now_th.isoformat()
         now_th_str = now_th.strftime('%d/%m/%Y %H:%M:%S')
+        date_str = now_th.strftime("%d/%m/%y")
 
         # 1. บันทึกข้อมูลกองทุนลง ports/my-scb-port
         db.reference('ports/my-scb-port').set(updated_funds_list)
         
-        # 2. บันทึก Summary (ใช้เวลาประเทศไทย UTC+7)
+        # 2. บันทึก Summary
         db.reference('scb_summary/current').set({
             'value': total_value,
             'cost': total_cost,
@@ -160,7 +175,6 @@ def main():
         })
 
         # 3. บันทึก History Snapshot
-        date_str = datetime.now().strftime("%d/%m/%y")
         ref_history = db.reference('scb_history')
         existing_history = ref_history.get() or []
         if not isinstance(existing_history, list):
@@ -172,7 +186,7 @@ def main():
             'profit': total_profit,
             'cost': total_cost,
             'dailyProfit': total_daily_profit,
-            'timestamp': datetime.now().isoformat()
+            'timestamp': now_th_iso
         }
 
         found = False
@@ -189,7 +203,7 @@ def main():
             existing_history = existing_history[-60:]
 
         ref_history.set(existing_history)
-        print("   ✅ บันทึก NAV, Summary (พร้อม Daily Profit) และ History Snapshot ขึ้น Firebase เรียบร้อยแล้ว")
+        print("   ✅ บันทึก NAV, Summary และ History Snapshot ขึ้น Firebase เรียบร้อยแล้ว")
 
     print("==============")
     print(f"TOTAL FUNDS = {len(fund_codes)}")
