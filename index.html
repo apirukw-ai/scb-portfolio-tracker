@@ -403,9 +403,33 @@
             }
         }
 
-        function saveData() {
-            console.log("💾 Local action completed. Server-side handles writes.");
+        async function saveData() {
+    try {
+        console.log("💾 กำลังบันทึกข้อมูลไปยัง Firebase...");
+        
+        // กรองเอาเฉพาะข้อมูล Object ที่ถูกต้องก่อนส่ง
+        const cleanFunds = funds.filter(f => f && typeof f === 'object');
+
+        const res = await fetch(DB_URL, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(cleanFunds)
+        });
+
+        if (res.ok) {
+            console.log("✅ บันทึกข้อมูลลง Firebase เรียบร้อยแล้ว");
             renderAll();
+        } else {
+            console.error("❌ บันทึกไม่สำเร็จ HTTP Status:", res.status);
+            alert("ไม่สามารถบันทึกข้อมูลได้ (HTTP " + res.status + ")");
+        }
+    } catch (err) {
+        console.error("❌ เกิดข้อผิดพลาดในการส่งข้อมูล:", err);
+        alert("เกิดข้อผิดพลาดในการเชื่อมต่อเครือข่าย");
+    }
+}
         }
 
         function renderAll() {
