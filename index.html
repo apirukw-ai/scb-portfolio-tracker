@@ -364,33 +364,51 @@
     // 3. สร้าง Client โดยอ้างอิง window.supabase
     const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-       
-        let funds = [];
-        let historyLogs = [];
-        let profitChartInstance = null;
-        let historyChartInstance = null;
+    // ประกาศตัวแปร Global ไว้ด้านบนสุด
+    let funds = [];
+    let historyLogs = [];
+    let profitChartInstance = null;
+    let historyChartInstance = null;
 
-        document.addEventListener('DOMContentLoaded', () => {
-            loadData();
-        });
+    // สั่งให้โหลดข้อมูลทันทีที่ DOM พร้อม (เขียนเพียงครั้งเดียว)
+    document.addEventListener('DOMContentLoaded', () => {
+        loadData();
+    });
 
-        // 4. ตัวอย่างการดึงข้อมูลใน loadData()
+    // 4. ฟังก์ชันดึงข้อมูลหลักจาก Supabase
     async function loadData() {
         try {
-            const { data, error } = await supabaseClient
+            // 1. ดึงข้อมูลกองทุนในพอร์ต
+            const { data: portsData, error: portsError } = await supabaseClient
                 .schema('scb')
                 .from('ports')
                 .select('*');
 
-            if (error) throw error;
+            if (portsError) {
+                console.error("Supabase Ports Error:", portsError);
+                return;
+            }
 
-            funds = data || [];
-            
-            // เรียกฟังก์ชันวาด UI
+            funds = portsData || [];
+
+            // 2. ดึงข้อมูลประวัติย้อนหลัง (ถ้ามีตาราง scb_history)
+            const { data: historyData, error: historyError } = await supabaseClient
+                .schema('scb')
+                .from('scb_history')
+                .select('*')
+                .order('timestamp', { ascending: true });
+
+            if (!historyError && historyData) {
+                historyLogs = historyData;
+            }
+
+            // 3. เรียกฟังก์ชันวาด UI และคำนวณสรุปพอร์ต
             if (typeof renderTable === 'function') renderTable();
-            if (typeof updateUI === 'function') updateUI();
+            if (typeof calculateSummary === 'function') calculateSummary();
+            if (typeof updateCharts === 'function') updateCharts();
+            
         } catch (err) {
-            console.error("Error loading ports:", err);
+            console.error("Error loading data from Supabase:", err);
         }
     }
 </script>
