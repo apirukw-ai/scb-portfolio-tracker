@@ -391,14 +391,26 @@ let historyChartInstance = null;
         ]);
 
         if (portsRes.error) throw portsRes.error;
-        funds = portsRes.data || [];
+
+        // 🟢 แทรกตรงนี้: แปลงข้อมูลจาก Supabase เป็นโครงสร้างเดิมก่อนส่งให้ระบบทำงานต่อ
+        funds = (portsRes.data || []).map(f => {
+            const units = Number(f.units) || 0;
+            const totalCost = Number(f.cost) || 0;
+            
+            return {
+                ...f,
+                currentNav: Number(f.nav) || 0,                      // nav -> currentNav
+                avgNav: units > 0 ? (totalCost / units) : 0,        // คำนวณ cost/units -> avgNav
+                dailyPct: Number(f.daily_pct || f.dailyPct) || 0    // รองรับ dailyPct
+            };
+        });
 
         if (historyRes.error) throw historyRes.error;
         historyLogs = historyRes.data || [];
 
         console.log('Loaded funds successfully:', funds);
 
-        // เรียกวาด UI แสดงข้อมูล
+        // สั่งวาดหน้าจอด้วยโครงสร้างเดิมได้ทันที
         if (typeof renderAll === 'function') {
             renderAll();
         }
@@ -407,7 +419,6 @@ let historyChartInstance = null;
         console.error('Error loading SCB data from Supabase:', err);
     }
 }
-
 async function saveData() {
     try {
         console.log("💾 Saving data to Supabase...");
