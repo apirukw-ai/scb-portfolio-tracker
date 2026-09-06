@@ -359,7 +359,7 @@
 <script>
   const SUPABASE_URL = 'https://iproktvvetsbxxmpptuj.supabase.co';
   const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imlwcm9rdHZ2ZXRzYnh4bXBwdHVqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODcyOTU3NDEsImV4cCI6MjEwMjg3MTc0MX0.Kc0USo30u4gvZNJ1bsOdD9k6nwEBcY7lNMAQxWEFzqw';
-  const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+  const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
        
         let funds = [];
@@ -373,18 +373,14 @@
 
         async function loadData() {
     try {
-        const { data, error } = await supabase
+        const { data, error } = await supabaseClient
             .schema('scb')
             .from('ports')
             .select('*');
 
         if (error) throw error;
-
-        // ตัวแปร funds ใน index.html เดิมจะได้รับ Array ตรงๆ ทันที
-        funds = data || []; 
-
-        // เรียกฟังก์ชันวาด UI เดิมของคุณได้เลย
-        renderTable(); // หรือชื่อฟังก์ชันเดิมที่ใช้แสดงผลตาราง
+        funds = data || [];
+        renderTable(); // หรือชื่อฟังก์ชันแสดงตารางของคุณ
     } catch (err) {
         console.error("Error loading ports:", err);
     }
