@@ -353,13 +353,16 @@
             <button type="button" onclick="importJSON()" class="btn btn-purple" style="width:100%; justify-content:center; margin-top:10px;">ตกลง Import</button>
         </div>
     </div>
-    <!-- ใส่ Supabase JS SDK -->
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-supabase-js@2"></script>
+   <!-- 1. โหลด Supabase SDK (ต้องวางไว้ก่อนสคริปต์การทำงานเสมอ) -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
 <script>
-  const SUPABASE_URL = 'https://iproktvvetsbxxmpptuj.supabase.co';
-  const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imlwcm9rdHZ2ZXRzYnh4bXBwdHVqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODcyOTU3NDEsImV4cCI6MjEwMjg3MTc0MX0.Kc0USo30u4gvZNJ1bsOdD9k6nwEBcY7lNMAQxWEFzqw';
-  const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    // 2. กำหนดค่า Supabase Configuration
+    const SUPABASE_URL = 'https://iproktvvetsbxxmpptuj.supabase.co';
+    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imlwcm9rdHZ2ZXRzYnh4bXBwdHVqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODcyOTU3NDEsImV4cCI6MjEwMjg3MTc0MX0.Kc0USo30u4gvZNJ1bsOdD9k6nwEBcY7lNMAQxWEFzqw';
+
+    // 3. สร้าง Client โดยอ้างอิง window.supabase
+    const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
        
         let funds = [];
@@ -371,20 +374,26 @@
             loadData();
         });
 
-        async function loadData() {
-    try {
-        const { data, error } = await supabaseClient
-            .schema('scb')
-            .from('ports')
-            .select('*');
+        // 4. ตัวอย่างการดึงข้อมูลใน loadData()
+    async function loadData() {
+        try {
+            const { data, error } = await supabaseClient
+                .schema('scb')
+                .from('ports')
+                .select('*');
 
-        if (error) throw error;
-        funds = data || [];
-        renderTable(); // หรือชื่อฟังก์ชันแสดงตารางของคุณ
-    } catch (err) {
-        console.error("Error loading ports:", err);
+            if (error) throw error;
+
+            funds = data || [];
+            
+            // เรียกฟังก์ชันวาด UI
+            if (typeof renderTable === 'function') renderTable();
+            if (typeof updateUI === 'function') updateUI();
+        } catch (err) {
+            console.error("Error loading ports:", err);
+        }
     }
-}
+</script>
         function saveData() {
             console.log("💾 Local action completed. Server-side handles writes.");
             renderAll();
