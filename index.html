@@ -24,6 +24,8 @@
     <link href="https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     
+	<!-- ใส่ Supabase CDN เข้าไปแทน -->
+	<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
 
     <!-- แทรก CDN Chart.js ไว้บรรทัดนี้ครับ -->
@@ -353,65 +355,49 @@
             <button type="button" onclick="importJSON()" class="btn btn-purple" style="width:100%; justify-content:center; margin-top:10px;">ตกลง Import</button>
         </div>
     </div>
-   <!-- 1. โหลด Supabase SDK (ต้องวางไว้ก่อนสคริปต์การทำงานเสมอ) -->
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
-<script>
-    // 2. กำหนดค่า Supabase Configuration
-    const SUPABASE_URL = 'https://iproktvvetsbxxmpptuj.supabase.co';
-    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imlwcm9rdHZ2ZXRzYnh4bXBwdHVqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODcyOTU3NDEsImV4cCI6MjEwMjg3MTc0MX0.Kc0USo30u4gvZNJ1bsOdD9k6nwEBcY7lNMAQxWEFzqw';
+    <script>
+        // ใส่การเชื่อมต่อ Supabase แทน
+		const SUPABASE_URL = 'https://iproktvvetsbxxmpptuj.supabase.co'; // เปลี่ยนเป็น URL ของคุณ
+		const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imlwcm9rdHZ2ZXRzYnh4bXBwdHVqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODcyOTU3NDEsImV4cCI6MjEwMjg3MTc0MX0.Kc0USo30u4gvZNJ1bsOdD9k6nwEBcY7lNMAQxWEFzqw'; // เปลี่ยนเป็น Anon Key ของคุณ
+		const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+        
+		let funds = [];
+        let historyLogs = [];
+        let profitChartInstance = null;
+        let historyChartInstance = null;
 
-    // 3. สร้าง Client โดยอ้างอิง window.supabase
-    const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+        document.addEventListener('DOMContentLoaded', () => {
+            loadData();
+        });
 
-    // ประกาศตัวแปร Global ไว้ด้านบนสุด
-    let funds = [];
-    let historyLogs = [];
-    let profitChartInstance = null;
-    let historyChartInstance = null;
-
-    // สั่งให้โหลดข้อมูลทันทีที่ DOM พร้อม (เขียนเพียงครั้งเดียว)
-    document.addEventListener('DOMContentLoaded', () => {
-        loadData();
-    });
-
-    // 4. ฟังก์ชันดึงข้อมูลหลักจาก Supabase
-    async function loadData() {
-        try {
-            // 1. ดึงข้อมูลกองทุนในพอร์ต
-            const { data: portsData, error: portsError } = await supabaseClient
-                .schema('scb')
-                .from('ports')
-                .select('*');
-
-            if (portsError) {
-                console.error("Supabase Ports Error:", portsError);
-                return;
-            }
-
-            funds = portsData || [];
-
-            // 2. ดึงข้อมูลประวัติย้อนหลัง (ถ้ามีตาราง scb_history)
-            const { data: historyData, error: historyError } = await supabaseClient
-                .schema('scb')
-                .from('scb_history')
-                .select('*')
-                .order('timestamp', { ascending: true });
-
-            if (!historyError && historyData) {
-                historyLogs = historyData;
-            }
-
-            // 3. เรียกฟังก์ชันวาด UI และคำนวณสรุปพอร์ต
-            if (typeof renderTable === 'function') renderTable();
-            if (typeof calculateSummary === 'function') calculateSummary();
-            if (typeof updateCharts === 'function') updateCharts();
+        async function loadData() {
+    try {
+        console.log('START LOAD SCB DATA (Supabase)');
+        
+        // ดึงข้อมูลกองทุนจาก Table 'funds'
+        const { data: fundsData, error: fundsError } = await supabase
+            .from('funds')
+            .select('*');
             
-        } catch (err) {
-            console.error("Error loading data from Supabase:", err);
-        }
+        if (fundsError) throw fundsError;
+        funds = fundsData || [];
+
+        // ดึงข้อมูลประวัติจาก Table 'history_logs'
+        const { data: histData, error: histError } = await supabase
+            .from('history_logs')
+            .select('*');
+            
+        if (histError) throw histError;
+        historyLogs = histData || [];
+
+        renderAll(); // โค้ดส่วนนี้ใช้ของเดิมได้เลย
+        console.log('☁️ ดึงข้อมูล SCB สดสำเร็จ');
+    } catch (err) {
+        console.error("Load SCB Data Error:", err.message);
     }
-</script>
+}
+
         function saveData() {
             console.log("💾 Local action completed. Server-side handles writes.");
             renderAll();
