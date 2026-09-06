@@ -384,7 +384,6 @@ let historyChartInstance = null;
     try {
         console.log('START LOAD SCB DATA (Supabase)');
 
-        // ดึงข้อมูลโดยใช้ window.supabaseClient
         const [portsRes, historyRes, summaryRes] = await Promise.all([
             window.supabaseClient.from('ports').select('*'),
             window.supabaseClient.from('scb_history').select('*'),
@@ -399,35 +398,37 @@ let historyChartInstance = null;
 
         console.log('Loaded funds successfully:', funds);
 
-        // เรียกฟังก์ชัน Render หน้าจอเดิมของคุณ
-        // renderAll();
+        // เรียกวาด UI แสดงข้อมูล
+        if (typeof renderAll === 'function') {
+            renderAll();
+        }
 
     } catch (err) {
         console.error('Error loading SCB data from Supabase:', err);
     }
 }
-        async function saveData() {
+
+async function saveData() {
     try {
         console.log("💾 Saving data to Supabase...");
 
-        // บันทึก หรือ อัปเดตข้อมูลในอาร์เรย์ funds ลงตาราง ports
-        const { data, error } = await supabase
+        const { data, error } = await window.supabaseClient
             .from('ports')
-            .upsert(funds, { onConflict: 'id' }); // อัปเดตตาม id เดิม ถ้าไม่มี id จะสร้างแถวใหม่
+            .upsert(funds, { onConflict: 'id' });
 
         if (error) throw error;
 
         console.log("✅ Data saved successfully!");
         
-        // แสดงผลหน้าจอใหม่
-        renderAll();
+        if (typeof renderAll === 'function') {
+            renderAll();
+        }
 
     } catch (err) {
         console.error("❌ Error saving data:", err);
         alert("เกิดข้อผิดพลาดในการบันทึกข้อมูล");
     }
 }
-
         function renderAll() {
           let totalVal = 0, totalCost = 0, totalValYesterday = 0;
           let ytdProfitSum = 0, threeMonthProfitSum = 0;
