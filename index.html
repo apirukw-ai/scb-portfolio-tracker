@@ -258,11 +258,21 @@
 
   </div>
 
-  <!-- ================= 3. ตาราง Portfolio Value History Log (อยู่ด้านล่างสุด) ================= -->
+ <!-- ================= 3. ตาราง Portfolio Value History Log (อยู่ด้านล่างสุด) ================= -->
   <div class="card" style="margin-top: 20px; min-width: 0;">
     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
       <div class="card-label"><i class="fa-solid fa-history"></i> ประวัติบันทึกมูลค่าพอร์ต</div>
-      <button onclick="clearHistoryLog()" class="btn btn-dark btn-sm text-red" style="font-size: 11px;">ล้างประวัติ</button>
+      
+      <!-- เอาปุ่มมาไว้ใน div เดียวกันเพื่อให้เรียงติดกัน -->
+      <div>
+        <button onclick="saveHistory()" class="btn btn-dark btn-sm text-green" style="font-size: 11px; margin-right: 8px;">
+          <i class="fa-solid fa-save"></i> บันทึกวันนี้
+        </button>
+        <button onclick="clearHistoryLog()" class="btn btn-dark btn-sm text-red" style="font-size: 11px;">
+          ล้างประวัติ
+        </button>
+      </div>
+      
     </div>
     <div class="table-responsive" style="max-height: 250px; overflow-y: auto;">
       <table class="table">
@@ -404,35 +414,33 @@ function saveData() {
 }
 	// ฟังก์ชันสำหรับเพิ่ม/แก้ไขข้อมูล (Insert/Update)
         async function handleFormSubmit(event) {
-            event.preventDefault();
-            const id = document.getElementById('editFundId').value;
-            
-            const fundData = {
-                code: document.getElementById('fundCodeInput').value.toUpperCase(),
-                avgNav: parseFloat(document.getElementById('avgNavInput').value),
-                currentNav: parseFloat(document.getElementById('currentNavInput').value),
-                units: parseFloat(document.getElementById('unitsInput').value),
-                targetPct: parseFloat(document.getElementById('targetPctInput').value)
-            };
+    event.preventDefault();
+    const id = document.getElementById('editFundId').value;
+    
+    const fundData = {
+        code: document.getElementById('fundCodeInput').value.toUpperCase(),
+        avgNav: parseFloat(document.getElementById('avgNavInput').value) || 0,
+        currentNav: parseFloat(document.getElementById('currentNavInput').value) || 0,
+        units: parseFloat(document.getElementById('unitsInput').value) || 0,
+        targetPct: parseFloat(document.getElementById('targetPctInput').value) || 0
+    };
 
-            try {
-                if (id) {
-                    // ถ้ามี id แปลว่าเป็นการแก้ไขข้อมูลเดิม (Update)
-                    const { error } = await supabase.from('scb_funds').update(fundData).eq('id', id);
-                    if (error) throw error;
-                } else {
-                    // ถ้าไม่มี id แปลว่าเป็นการเพิ่มกองทุนใหม่ (Insert)
-                    const { error } = await supabase.from('scb_funds').insert([fundData]);
-                    if (error) throw error;
-                }
-                
-                closeModal('fundModal');
-                loadData(); // ดึงข้อมูลใหม่มาแสดง
-            } catch (error) {
-                console.error('Error saving fund:', error.message);
-                alert('เกิดข้อผิดพลาดในการบันทึกข้อมูล');
-            }
+    try {
+        if (id) {
+            const { error } = await supabase.from('scb_funds').update(fundData).eq('id', id);
+            if (error) throw error;
+        } else {
+            const { error } = await supabase.from('scb_funds').insert([fundData]);
+            if (error) throw error;
         }
+        
+        closeModal('fundModal');
+        loadData(); 
+    } catch (error) {
+        console.error('Error saving fund:', error.message);
+        alert('เกิดข้อผิดพลาดในการบันทึกข้อมูล');
+    }
+}
 
         // ฟังก์ชันสำหรับลบข้อมูล (Delete)
         async function deleteFund(id) {
@@ -448,6 +456,40 @@ function saveData() {
                 alert('เกิดข้อผิดพลาดในการลบข้อมูล');
             }
         }
+
+		async function saveHistory() {
+    if (!confirm('ต้องการบันทึกมูลค่าพอร์ตของวันนี้ใช่หรือไม่?')) return;
+
+    // คำนวณมูลค่าและต้นทุนรวมปัจจุบันจากกองทุนที่มี
+    let totalVal = 0, totalCost = 0;
+    funds.forEach(f => {
+        totalVal += (f.units || 0) * (f.currentNav || 0);
+        totalCost += (f.units || 0) * (f.avgNav || 0);
+    });
+
+    const todayStr = new Date().toLocaleDateString('th-TH', { 
+        day: '2-digit', month: 'short', year: '2-digit' 
+    });
+
+    const historyData = {
+        date: todayStr,
+        val: totalVal,
+        cost: totalCost,
+        profit: totalVal - totalCost
+    };
+
+    try {
+        const { error } = await supabase.from('scb_history').insert([historyData]);
+        if (error) throw error;
+        
+        alert('บันทึกประวัติพอร์ตเรียบร้อยแล้ว');
+        loadData(); // ดึงข้อมูลกราฟและประวัติใหม่ทันที
+    } catch (error) {
+        console.error('Error saving history:', error.message);
+        alert('เกิดข้อผิดพลาดในการบันทึกประวัติ');
+    }
+}
+
 		
         function renderAll() {
           let totalVal = 0, totalCost = 0, totalValYesterday = 0;
