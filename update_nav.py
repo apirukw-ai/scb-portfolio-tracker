@@ -26,65 +26,63 @@ else:
     print("⚠️ ไม่พบ SUPABASE_KEY ใน Environment Variable")
 
 # ----------------------------------------------------
-# 2. ฟังก์ชันดึงค่า NAV รองรับสัญลักษณ์พิเศษ (& และ วงเล็บ)
+# 2. ฟังก์ชันดึงค่า NAV จากภายนอก
 # ----------------------------------------------------
 HEADERS = {
-    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
-    'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
     'Accept-Language': 'th-TH,th;q=0.9,en-US;q=0.8,en;q=0.7'
 }
 
-DEFAULT_SCB_FUNDS = ["SCBWORLD(E)", "SCBNDQ(E)", "SCBS&P500E", "SCBAXJ(E)", "SCBSEMI(E)"]
+DEFAULT_SCB_FUNDS = ["SCBWORLD(E)", "SCBNDQ(E)", "SCBS&P500(E)", "SCBAXJ(E)", "SCBSEMI(E)"]
 
 def get_code_variations(code):
-    """ สร้างรูปแบบชื่อกองทุนเพื่อรองรับทั้ง WealthX และ Finnomena """
     clean = code.strip()
-    variations = [
-        clean,                                                   # SCBS&P500E
-        clean.replace('&', '%26'),                               # SCBS%26P500E
-        clean.replace('&', '-'),                                 # SCBS-P500E
-        clean.replace('E', '(E)') if not clean.endswith('(E)') else clean, # SCBS&P500(E)
-        clean.replace('&', '%26').replace('E', '(E)') if not clean.endswith('(E)') else clean
-    ]
+    variations = [clean, clean.replace('(', '').replace(')', ''), clean.replace('(E)', '-E')]
+    base_vars = list(variations)
+    for v in base_vars:
+        variations.extend([v.replace('&', '%26'), v.replace('&', ''), v.replace('&', '-')])
     return list(dict.fromkeys(variations))
 
-def fetch_nav(code):
-    variations = get_code_variations(code)
-    
-    # 1. ค้นหาจาก WealthX
-    for symbol in variations:
+def get_nav_wealthx(code):
+    for symbol in get_code_variations(code):
         try:
             url = f"https://www.wealthx.co/funds/{symbol}"
-            res = requests.get(url, headers=HEADERS, timeout=6)
+            res = requests.get(url, headers=HEADERS, timeout=8)
             if res.status_code == 200:
-                # ดึง NAV ด้วย Regex
-                match = re.search(r'มูลค่าหน่วยลงทุน\s*\(NAV\)\s*(\d+\.\d{4})', res.text)
+                soup = BeautifulSoup(res.text, 'html.parser')
+                text = soup.get_text()
+                match = re.search(r'มูลค่าหน่วยลงทุน\s*\(NAV\)\s*(\d+\.\d{4})', text)
                 if match:
-                    return float(match.group(1)), "WealthX"
-                
-                # ดึงตัวเลข NAV รูปแบบทศนิยม 4 ตำแหน่ง
-                matches = re.findall(r'(\d{1,3}\.\d{4})', res.text)
+                    return float(match.group(1))
+                matches = re.findall(r'(\d+\.\d{4})', text)
                 if matches:
-                    for m in matches:
-                        val = float(m)
-                        if 5.0 <= val <= 500.0:
-                            return val, "WealthX"
+                    return float(matches[0])
         except Exception:
             pass
+    return None
 
-    # 2. ค้นหาจาก Finnomena Page
-    for symbol in variations:
+def get_nav_finnomena_page(code):
+    for symbol in get_code_variations(code):
         try:
             url = f"https://www.finnomena.com/fund/{symbol}"
-            res = requests.get(url, headers=HEADERS, timeout=6)
+            res = requests.get(url, headers=HEADERS, timeout=8)
             if res.status_code == 200:
                 match = re.search(r'"nav"\s*:\s*([0-9.]+)', res.text)
                 if match:
-                    return float(match.group(1)), "Finnomena"
+                    return float(match.group(1))
         except Exception:
             pass
+    return None
 
+def fetch_nav(code):
+    nav = get_nav_wealthx(code)
+    if nav:
+        return nav, "WealthX"
+    nav = get_nav_finnomena_page(code)
+    if nav:
+        return nav, "Finnomena"
     return None, None
+
 # ----------------------------------------------------
 # 3. ฟังก์ชันหลักในการอัปเดตพอร์ต
 # ----------------------------------------------------
