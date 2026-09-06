@@ -24,14 +24,13 @@
     <link href="https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     
-    <!-- Firebase SDK (Compat Version) -->
-    <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-database-compat.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+    <!-- Supabase SDK -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
 
-    <!-- แทรก CDN Chart.js ไว้บรรทัดนี้ครับ -->
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    
+<!-- แทรก CDN Chart.js ไว้บรรทัดนี้ครับ -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+      
     <style>
         :root {
             --bg-main: #0b0f17;
@@ -358,8 +357,21 @@
     </div>
 
     <script>
-        const DB_URL = "https://scb-e-class-default-rtdb.asia-southeast1.firebasedatabase.app/ports/my-scb-port.json";
-        const HIST_URL = "https://scb-e-class-default-rtdb.asia-southeast1.firebasedatabase.app/scb_history.json";
+        // ประกาศสร้าง Supabase Client
+const { createClient } = window.supabase;
+
+const SUPABASE_URL = 'https://iproktvvetsbxxmpptuj.supabase.co';
+    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imlwcm9rdHZ2ZXRzYnh4bXBwdHVqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODcyOTU3NDEsImV4cCI6MjEwMjg3MTc0MX0.Kc0USo30u4gvZNJ1bsOdD9k6nwEBcY7lNMAQxWEFzqw';
+const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+  db: {
+    schema: 'scb' // 👈 ใส่ชื่อ Schema ที่สร้างแยกไว้สำหรับแอปนี้
+  }
+});
+
+let funds = [];
+let historyLogs = [];
+let profitChartInstance = null;
+let historyChartInstance = null;
         let funds = [];
         let historyLogs = [];
         let profitChartInstance = null;
@@ -370,43 +382,61 @@
         });
 
         async function loadData() {
-            try {
-                console.log('START LOAD SCB DATA (Network Only)');
-                const res = await fetch(DB_URL + '?t=' + Date.now());
-                const data = await res.json();
-                
-                if (Array.isArray(data)) {
-                    funds = data;
-                } else if (data && typeof data === 'object') {
-                    funds = data.funds || data.items || (Array.isArray(data) ? data : []);
-                } else {
-                    funds = [];
-                }
+    try {
+        console.log('START LOAD SCB DATA (Supabase)');
 
-                try {
-                    const resHist = await fetch(HIST_URL + '?t=' + Date.now());
-                    const histData = await resHist.json();
-                    if (Array.isArray(histData)) {
-                        historyLogs = histData.filter(h => h && typeof h === 'object');
-                    } else if (histData && typeof histData === 'object') {
-                        historyLogs = Object.values(histData);
-                    } else {
-                        historyLogs = [];
-                    }
-                } catch(e) { historyLogs = []; }
+        // ดึงข้อมูลทั้ง 3 ตารางพร้อมกัน
+        const [portsRes, historyRes, summaryRes] = await Promise.all([
+            supabase.from('ports').select('*'),
+            supabase.from('scb_history').select('*'),
+            supabase.from('scb_summary').select('*')
+        ]);
 
-                funds = funds.filter(f => f && typeof f === 'object');
-                renderAll();
-                console.log('☁️ ดึงข้อมูล SCB สดสำเร็จ');
-            } catch (err) {
-                console.error("Load SCB Data Error:", err);
-            }
-        }
+        // 1. ตรวจสอบและเก็บข้อมูลกองทุน
+        if (portsRes.error) throw portsRes.error;
+        funds = portsRes.data || [];
 
-        function saveData() {
-            console.log("💾 Local action completed. Server-side handles writes.");
-            renderAll();
-        }
+        // 2. ตรวจสอบและเก็บข้อมูลประวัติ
+        if (historyRes.error) throw historyRes.error;
+        historyLogs = historyRes.data || [];
+
+        // 3. ตรวจสอบข้อมูลสรุปภาพรวม
+        if (summaryRes.error) throw summaryRes.error;
+        const summaryData = summaryRes.data || [];
+
+        // ทำการคลีนข้อมูลป้องกันค่าว่าง
+        funds = funds.filter(f => f && typeof f === 'object');
+
+        console.log('Loaded funds successfully:', funds);
+
+        // TODO: เรียกฟังก์ชันวาด UI/ Render ตารางของเดิมที่คุณมีต่อจากตรงนี้
+        // renderUI();
+
+    } catch (err) {
+        console.error('Error loading SCB data from Supabase:', err);
+    }
+}
+        async function saveData() {
+    try {
+        console.log("💾 Saving data to Supabase...");
+
+        // บันทึก หรือ อัปเดตข้อมูลในอาร์เรย์ funds ลงตาราง ports
+        const { data, error } = await supabase
+            .from('ports')
+            .upsert(funds, { onConflict: 'id' }); // อัปเดตตาม id เดิม ถ้าไม่มี id จะสร้างแถวใหม่
+
+        if (error) throw error;
+
+        console.log("✅ Data saved successfully!");
+        
+        // แสดงผลหน้าจอใหม่
+        renderAll();
+
+    } catch (err) {
+        console.error("❌ Error saving data:", err);
+        alert("เกิดข้อผิดพลาดในการบันทึกข้อมูล");
+    }
+}
 
         function renderAll() {
           let totalVal = 0, totalCost = 0, totalValYesterday = 0;
