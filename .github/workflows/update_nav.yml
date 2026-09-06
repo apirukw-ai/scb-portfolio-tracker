@@ -10,10 +10,6 @@ on:
 
   workflow_dispatch: # ปุ่มกดรันด้วยมือเพื่อทดสอบ
 
-# ให้สิทธิ์ GitHub Action บันทึกไฟล์กลับลง Repository
-permissions:
-  contents: write
-
 jobs:
   update-nav:
     runs-on: ubuntu-latest
@@ -29,28 +25,10 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install requests beautifulsoup4 firebase-admin
+          pip install requests beautifulsoup4 supabase
 
-      # 📍 แทรกสร้างไฟล์ Key จาก GitHub Secret
-      - name: Create Firebase Service Account Key JSON
-        run: |
-          echo '${{ secrets.FIREBASE_KEY }}' > serviceAccountKey.json
-
-      # 📍 สั่งรันสคริปต์อัปเดต NAV (เหลือรอบเดียว)
       - name: Run Update NAV Script
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
         run: python update_nav.py
-
-      # 📌 บันทึกและ Push เฉพาะไฟล์ที่ต้องการ (ไม่เอา serviceAccountKey.json)
-      - name: Commit and Push changes
-        run: |
-          git config --local user.email "action@github.com"
-          git config --local user.name "GitHub Action"
-          git rm --cached serviceAccountKey.json || true
-          git add index.html
-          git commit -m "Auto-update NAVs [skip ci]" || exit 0
-          git push
-
-      # 📍 ลบไฟล์ Key ทิ้งหลังจบกระบวนการเพื่อความปลอดภัย
-      - name: Clean up Key
-        if: always()
-        run: rm -f serviceAccountKey.json
