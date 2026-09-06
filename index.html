@@ -375,17 +375,17 @@
     try {
         console.log('START LOAD SCB DATA (Supabase)');
         
-        // ดึงข้อมูลกองทุนจาก Table 'funds'
+        // ดึงข้อมูลกองทุนจาก Table 'scb_funds'
         const { data: fundsData, error: fundsError } = await supabase
-            .from('funds')
+            .from('scb_funds') // เปลี่ยนชื่อตารางตรงนี้
             .select('*');
             
         if (fundsError) throw fundsError;
         funds = fundsData || [];
 
-        // ดึงข้อมูลประวัติจาก Table 'history_logs'
+        // ดึงข้อมูลประวัติจาก Table 'scb_history'
         const { data: histData, error: histError } = await supabase
-            .from('history_logs')
+            .from('scb_history') // เปลี่ยนชื่อตารางตรงนี้
             .select('*');
             
         if (histError) throw histError;
@@ -398,11 +398,57 @@
     }
 }
 
-        function saveData() {
-            console.log("💾 Local action completed. Server-side handles writes.");
-            renderAll();
+function saveData() {
+    console.log("💾 Local action completed. Server-side handles writes.");
+    renderAll(); //[cite: 1]
+}
+	// ฟังก์ชันสำหรับเพิ่ม/แก้ไขข้อมูล (Insert/Update)
+        async function handleFormSubmit(event) {
+            event.preventDefault();
+            const id = document.getElementById('editFundId').value;
+            
+            const fundData = {
+                code: document.getElementById('fundCodeInput').value.toUpperCase(),
+                avgNav: parseFloat(document.getElementById('avgNavInput').value),
+                currentNav: parseFloat(document.getElementById('currentNavInput').value),
+                units: parseFloat(document.getElementById('unitsInput').value),
+                targetPct: parseFloat(document.getElementById('targetPctInput').value)
+            };
+
+            try {
+                if (id) {
+                    // ถ้ามี id แปลว่าเป็นการแก้ไขข้อมูลเดิม (Update)
+                    const { error } = await supabase.from('scb_funds').update(fundData).eq('id', id);
+                    if (error) throw error;
+                } else {
+                    // ถ้าไม่มี id แปลว่าเป็นการเพิ่มกองทุนใหม่ (Insert)
+                    const { error } = await supabase.from('scb_funds').insert([fundData]);
+                    if (error) throw error;
+                }
+                
+                closeModal('fundModal');
+                loadData(); // ดึงข้อมูลใหม่มาแสดง
+            } catch (error) {
+                console.error('Error saving fund:', error.message);
+                alert('เกิดข้อผิดพลาดในการบันทึกข้อมูล');
+            }
         }
 
+        // ฟังก์ชันสำหรับลบข้อมูล (Delete)
+        async function deleteFund(id) {
+            if (!confirm('ต้องการลบกองทุนนี้ใช่หรือไม่?')) return;
+            
+            try {
+                const { error } = await supabase.from('scb_funds').delete().eq('id', id);
+                if (error) throw error;
+                
+                loadData(); // โหลดหน้าจอใหม่หลังลบเสร็จ
+            } catch (error) {
+                console.error('Error deleting fund:', error.message);
+                alert('เกิดข้อผิดพลาดในการลบข้อมูล');
+            }
+        }
+		
         function renderAll() {
           let totalVal = 0, totalCost = 0, totalValYesterday = 0;
           let ytdProfitSum = 0, threeMonthProfitSum = 0;
