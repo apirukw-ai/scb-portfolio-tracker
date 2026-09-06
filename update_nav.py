@@ -5,32 +5,25 @@ import requests
 import urllib.parse
 from bs4 import BeautifulSoup
 from datetime import datetime, timezone, timedelta
-
-import firebase_admin
-from firebase_admin import credentials, db
+from supabase import create_client, Client
 
 # ----------------------------------------------------
-# 1. ระบบ เชื่อมต่อ Firebase (รองรับทั้ง Local และ GitHub Actions)
+# 1. ระบบเชื่อมต่อ Supabase
 # ----------------------------------------------------
-db_url = os.environ.get('DB_URL', 'https://scb-e-class-default-rtdb.asia-southeast1.firebasedatabase.app/')
-firebase_key_env = os.environ.get('FIREBASE_KEY')
+SUPABASE_URL = os.environ.get('SUPABASE_URL', 'https://iproktvvetsbxxmpptuj.supabase.co')
+SUPABASE_KEY = os.environ.get('SUPABASE_KEY', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imlwcm9rdHZ2ZXRzYnh4bXBwdHVqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODcyOTU3NDEsImV4cCI6MjEwMjg3MTc0MX0.Kc0USo30u4gvZNJ1bsOdD9k6nwEBcY7lNMAQxWEFzqw')
 
-if firebase_key_env:
+supabase: Client = None
+
+if SUPABASE_KEY:
     try:
-        key_dict = json.loads(firebase_key_env)
-        if isinstance(key_dict, str):
-            key_dict = json.loads(key_dict)
-        cred = credentials.Certificate(key_dict)
-        firebase_admin.initialize_app(cred, {'databaseURL': db_url})
-        print("🔑 เชื่อมต่อ Firebase สำเร็จ (ผ่าน GitHub Secrets)")
+        # เชื่อมต่อ Supabase
+        supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
+        print("🔑 เชื่อมต่อ Supabase สำเร็จ")
     except Exception as e:
-        print(f"❌ โหลด FIREBASE_KEY จาก Environment Variable ล้มเหลว: {e}")
-elif os.path.exists("serviceAccountKey.json"):
-    cred = credentials.Certificate("serviceAccountKey.json")
-    firebase_admin.initialize_app(cred, {'databaseURL': db_url})
-    print("🔑 เชื่อมต่อ Firebase สำเร็จ (ผ่านไฟล์ serviceAccountKey.json)")
+        print(f"❌ โหลด Supabase Client ล้มเหลว: {e}")
 else:
-    print("⚠️ ไม่พบ Credential สำหรับเชื่อมต่อ Firebase")
+    print("⚠️ ไม่พบ SUPABASE_KEY ใน Environment Variable")
 
 # ----------------------------------------------------
 # 2. ฟังก์ชันดึงค่า NAV จากภายนอก
@@ -94,19 +87,22 @@ def fetch_nav(code):
 # 3. ฟังก์ชันหลักในการอัปเดตพอร์ต
 # ----------------------------------------------------
 def main():
-    print("🚀 เริ่มต้นระบบดึงข้อมูล NAV อัตโนมัติ (SCB Portfolio)...")
+    print("🚀 เริ่มต้นระบบดึงข้อมูล NAV อัตโนมัติ (Supabase)...")
 
-    firebase_data = None
-    if firebase_admin._apps:
-        ref = db.reference('ports/my-scb-port')
-        firebase_data = ref.get()
+    if not supabase:
+        print("❌ ไม่สามารถทำงานต่อได้เนื่องจากไม่ได้เชื่อมต่อ Supabase")
+        return
 
-    fund_codes = []
-    if firebase_data and isinstance(firebase_data, list):
-        for item in firebase_data:
-            if isinstance(item, dict) and item.get('code'):
-                fund_codes.append(item.get('code'))
-    
+    # 1. อ่านข้อมูลกองทุนจาก Supabase (Schema scb, ตาราง ports)
+    try:
+        response = supabase.schema('scb').table('ports').select('*').execute()
+        ports_data = response.data or []
+    except Exception as e:
+        print(f"❌ อ่านข้อมูลจาก Supabase ports ล้มเหลว: {e}")
+        ports_data = []
+
+    fund_codes = [item.get('code') for item in ports_data if isinstance(item, dict) and item.get('code')]
+
     if not fund_codes:
         fund_codes = DEFAULT_SCB_FUNDS
 
@@ -114,8 +110,8 @@ def main():
     print(f"📊 พบรายการกองทุนทั้งหมด {len(fund_codes)} รายการ: {', '.join(fund_codes)}")
 
     updated_count = 0
-    updated_funds_list = firebase_data if (firebase_data and isinstance(firebase_data, list)) else []
 
+    # 2. วนลูปดึงราคา NAV และอัปเดตกลับลง Supabase
     for code in fund_codes:
         print(f"🔍 กำลังดึง NAV ของ: {code} ...")
         nav, source = fetch_nav(code)
@@ -123,27 +119,34 @@ def main():
         if nav is not None and 0 < nav <= 1000:
             print(f"   ✅ {code}: NAV = {nav} [{source}]")
             updated_count += 1
-            for item in updated_funds_list:
-                if isinstance(item, dict) and item.get('code') == code:
-                    item['currentNav'] = nav
+            
+            # อัปเดตราคา NAV ลงตาราง ports ใน schema scb
+            try:
+                supabase.schema('scb').table('ports').update({'nav': nav}).eq('code', code).execute()
+            except Exception as e:
+                print(f"   ❌ อัปเดต NAV สำหรับ {code} ลง Supabase ล้มเหลว: {e}")
         else:
             print(f"   ❌ {code}: ไม่พบข้อมูล NAV")
 
-    if updated_count > 0 and firebase_admin._apps:
+    # 3. คำนวณภาพรวมสรุปพอร์ตเมื่อดึง NAV สำเร็จ
+    if updated_count > 0:
+        # อ่านข้อมูลพอร์ตอนใหม่หลังอัปเดต NAV แล้ว
+        fresh_ports = supabase.schema('scb').table('ports').select('*').execute().data or []
+        
         total_value = 0
         total_cost = 0
         total_daily_profit = 0
 
-        for item in updated_funds_list:
+        for item in fresh_ports:
             if isinstance(item, dict):
                 units = float(item.get('units', 0))
-                nav_val = float(item.get('currentNav', 0))
-                cost_val = float(item.get('avgNav', 0))
+                nav_val = float(item.get('nav', 0))
+                cost_val = float(item.get('cost', 0)) # เงินต้นรวม
                 
-                prev_nav = float(item.get('prevNav', item.get('navYesterday', cost_val)))
+                prev_nav = float(item.get('prev_nav', item.get('nav_yesterday', nav_val)))
                 
                 total_value += nav_val * units
-                total_cost += cost_val * units
+                total_cost += cost_val
                 total_daily_profit += (nav_val - prev_nav) * units
 
         total_profit = total_value - total_cost
@@ -159,51 +162,37 @@ def main():
         now_th_str = now_th.strftime('%d/%m/%Y %H:%M:%S')
         date_str = now_th.strftime("%d/%m/%y")
 
-        # 1. บันทึกข้อมูลกองทุนลง ports/my-scb-port
-        db.reference('ports/my-scb-port').set(updated_funds_list)
-        
-        # 2. บันทึก Summary
-        db.reference('scb_summary/current').set({
+        # 4. บันทึกเข้าตาราง scb_summary
+        summary_payload = {
+            'id': 'current',
             'value': total_value,
             'cost': total_cost,
             'profit': total_profit,
-            'profitPct': total_profit_pct,
-            'dailyProfit': total_daily_profit,
-            'dailyProfitPct': daily_profit_pct,
-            'updatedAt': now_th_iso,
-            'updatedAtStr': now_th_str
-        })
+            'profit_pct': total_profit_pct,
+            'daily_profit': total_daily_profit,
+            'daily_profit_pct': daily_profit_pct,
+            'updated_at': now_th_iso,
+            'updated_at_str': now_th_str
+        }
+        try:
+            supabase.schema('scb').table('scb_summary').upsert(summary_payload).execute()
+        except Exception as e:
+            print(f"❌ อัปเดต scb_summary ล้มเหลว: {e}")
 
-        # 3. บันทึก History Snapshot
-        ref_history = db.reference('scb_history')
-        existing_history = ref_history.get() or []
-        if not isinstance(existing_history, list):
-            existing_history = []
-
-        history_entry = {
+        # 5. บันทึก History Snapshot ลงตาราง scb_history
+        history_payload = {
             'date': date_str,
             'val': total_value,
             'profit': total_profit,
             'cost': total_cost,
-            'dailyProfit': total_daily_profit,
+            'daily_profit': total_daily_profit,
             'timestamp': now_th_iso
         }
-
-        found = False
-        for idx, h in enumerate(existing_history):
-            if isinstance(h, dict) and h.get('date') == date_str:
-                existing_history[idx] = history_entry
-                found = True
-                break
-        
-        if not found:
-            existing_history.append(history_entry)
-
-        if len(existing_history) > 60:
-            existing_history = existing_history[-60:]
-
-        ref_history.set(existing_history)
-        print("   ✅ บันทึก NAV, Summary และ History Snapshot ขึ้น Firebase เรียบร้อยแล้ว")
+        try:
+            supabase.schema('scb').table('scb_history').upsert(history_payload, on_conflict='date').execute()
+            print("   ✅ บันทึก NAV, Summary และ History Snapshot ลง Supabase เรียบร้อยแล้ว")
+        except Exception as e:
+            print(f"❌ อัปเดต scb_history ล้มเหลว: {e}")
 
     print("==============")
     print(f"TOTAL FUNDS = {len(fund_codes)}")
