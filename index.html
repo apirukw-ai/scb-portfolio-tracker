@@ -382,41 +382,32 @@ let historyChartInstance = null;
 
         async function loadData() {
     try {
-        console.log('START LOAD SCB DATA (Supabase)');
+        // 1. ดึงข้อมูลกองทุนจาก Supabase (schema 'scb', table 'ports')
+        const { data: portsData, error: portsError } = await window.supabaseClient
+            .schema('scb')
+            .from('ports')
+            .select('*');
 
-        const [portsRes, historyRes, summaryRes] = await Promise.all([
-            window.supabaseClient.from('ports').select('*'),
-            window.supabaseClient.from('scb_history').select('*'),
-            window.supabaseClient.from('scb_summary').select('*')
-        ]);
+        if (portsError) throw portsError;
 
-        if (portsRes.error) throw portsRes.error;
+        // ดึงข้อมูลมาใช้งานได้ตรงๆ ทันที ไม่ต้องใช้ .map() สลับตัวแปรอีกต่อไป
+        funds = portsData || [];
 
-        // 🟢 แทรกตรงนี้: แปลงข้อมูลจาก Supabase เป็นโครงสร้างเดิมก่อนส่งให้ระบบทำงานต่อ
-        funds = (portsRes.data || []).map(f => {
-            const units = Number(f.units) || 0;
-            const totalCost = Number(f.cost) || 0;
-            
-            return {
-                ...f,
-                currentNav: Number(f.nav) || 0,                      // nav -> currentNav
-                avgNav: units > 0 ? (totalCost / units) : 0,        // คำนวณ cost/units -> avgNav
-                dailyPct: Number(f.daily_pct || f.dailyPct) || 0    // รองรับ dailyPct
-            };
-        });
+        // 2. ดึงข้อมูล Summary (ถ้ามี)
+        const { data: summaryData } = await window.supabaseClient
+            .schema('scb')
+            .from('scb_summary')
+            .select('*')
+            .eq('id', 'current')
+            .single();
 
-        if (historyRes.error) throw historyRes.error;
-        historyLogs = historyRes.data || [];
-
-        console.log('Loaded funds successfully:', funds);
-
-        // สั่งวาดหน้าจอด้วยโครงสร้างเดิมได้ทันที
-        if (typeof renderAll === 'function') {
-            renderAll();
+        // 3. วาดหน้าจอ UI
+        renderPortfolio();
+        if (summaryData) {
+            updateSummaryUI(summaryData);
         }
-
     } catch (err) {
-        console.error('Error loading SCB data from Supabase:', err);
+        console.error("Error loading data from Supabase:", err);
     }
 }
 async function saveData() {
