@@ -26,63 +26,67 @@ else:
     print("⚠️ ไม่พบ SUPABASE_KEY ใน Environment Variable")
 
 # ----------------------------------------------------
-# 2. ฟังก์ชันดึงค่า NAV จากภายนอก
+# 2. ฟังก์ชันดึงค่า NAV จาก Finnomena Direct API
 # ----------------------------------------------------
 HEADERS = {
     'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
-    'Accept-Language': 'th-TH,th;q=0.9,en-US;q=0.8,en;q=0.7'
+    'Accept': 'application/json, text/plain, */*'
 }
 
 DEFAULT_SCB_FUNDS = ["SCBWORLD(E)", "SCBNDQ(E)", "SCBS&P500(E)", "SCBAXJ(E)", "SCBSEMI(E)"]
 
-def get_code_variations(code):
+def get_clean_fund_code(code):
+    """ แปลงชื่อกองทุนให้ตรงกับรูปแบบที่ API Finnomena ต้องการ """
     clean = code.strip()
-    variations = [clean, clean.replace('(', '').replace(')', ''), clean.replace('(E)', '-E')]
-    base_vars = list(variations)
-    for v in base_vars:
-        variations.extend([v.replace('&', '%26'), v.replace('&', ''), v.replace('&', '-')])
-    return list(dict.fromkeys(variations))
+    # SCBS&P500E หรือ SCBS&P500(E) -> SCBS&P500(E) / SCBS-P500-E
+    return clean
 
-def get_nav_wealthx(code):
-    for symbol in get_code_variations(code):
+def get_nav_finnomena_api(code):
+    """ ดึง NAV โดยตรงผ่าน API ของ Finnomena """
+    search_symbols = [
+        code,
+        code.replace('&', '%26'),
+        code.replace('&', '-'),
+        code.replace('(E)', '-E'),
+        code.replace('(E)', ''),
+        code.replace('SCBS&P500E', 'SCBS%26P500(E)'),
+        code.replace('SCBS&P500E', 'SCBS-P500-E')
+    ]
+    
+    # ลองค้นหาผ่าน Public API ของ Finnomena
+    for symbol in search_symbols:
         try:
-            url = f"https://www.wealthx.co/funds/{symbol}"
-            res = requests.get(url, headers=HEADERS, timeout=8)
+            url = f"https://www.finnomena.com/fn3/api/fund/public/v2/funds/nav/latest?fund_symbol={symbol}"
+            res = requests.get(url, headers=HEADERS, timeout=10)
             if res.status_code == 200:
-                soup = BeautifulSoup(res.text, 'html.parser')
-                text = soup.get_text()
-                match = re.search(r'มูลค่าหน่วยลงทุน\s*\(NAV\)\s*(\d+\.\d{4})', text)
-                if match:
-                    return float(match.group(1))
-                matches = re.findall(r'(\d+\.\d{4})', text)
-                if matches:
-                    return float(matches[0])
+                data = res.json()
+                if isinstance(data, dict) and 'data' in data:
+                    nav_val = data['data'].get('nav') or data['data'].get('value')
+                    if nav_val:
+                        return float(nav_val)
+                elif isinstance(data, dict) and 'nav' in data:
+                    return float(data['nav'])
         except Exception:
             pass
-    return None
 
-def get_nav_finnomena_page(code):
-    for symbol in get_code_variations(code):
+        # สำรอง: ค้นผ่าน Finnomena Public Fund Page
         try:
-            url = f"https://www.finnomena.com/fund/{symbol}"
-            res = requests.get(url, headers=HEADERS, timeout=8)
-            if res.status_code == 200:
-                match = re.search(r'"nav"\s*:\s*([0-9.]+)', res.text)
+            page_url = f"https://www.finnomena.com/fund/{symbol}"
+            res_page = requests.get(page_url, headers=HEADERS, timeout=8)
+            if res_page.status_code == 200:
+                match = re.search(r'"nav"\s*:\s*([0-9.]+)', res_page.text)
                 if match:
                     return float(match.group(1))
         except Exception:
             pass
+
     return None
 
 def fetch_nav(code):
-    nav = get_nav_wealthx(code)
+    nav = get_nav_finnomena_api(code)
     if nav:
-        return nav, "WealthX"
-    nav = get_nav_finnomena_page(code)
-    if nav:
-        return nav, "Finnomena"
+        return nav, "Finnomena API"
     return None, None
-
 # ----------------------------------------------------
 # 3. ฟังก์ชันหลักในการอัปเดตพอร์ต
 # ----------------------------------------------------
