@@ -84,7 +84,7 @@ def fetch_nav(code):
     return None, None
 
 # ----------------------------------------------------
-# 3. ฟังก์ชันหลักในการอัปเดตพอร์ต
+# 3. ฟังก์ชันหลักในการอัปเดตพอร์ต (แก้ไขให้ตรงกับเว็บ)
 # ----------------------------------------------------
 def main():
     print("🚀 เริ่มต้นระบบดึงข้อมูล NAV อัตโนมัติ (Supabase)...")
@@ -93,12 +93,12 @@ def main():
         print("❌ ไม่สามารถทำงานต่อได้เนื่องจากไม่ได้เชื่อมต่อ Supabase")
         return
 
-    # 1. อ่านข้อมูลกองทุนจาก Supabase (Schema scb, ตาราง ports)
+    # 1. อ่านข้อมูลกองทุนจาก Supabase (ตาราง scb_funds)
     try:
-        response = supabase.schema('scb').table('ports').select('*').execute()
+        response = supabase.table('scb_funds').select('*').execute()
         ports_data = response.data or []
     except Exception as e:
-        print(f"❌ อ่านข้อมูลจาก Supabase ports ล้มเหลว: {e}")
+        print(f"❌ อ่านข้อมูลจาก Supabase scb_funds ล้มเหลว: {e}")
         ports_data = []
 
     fund_codes = [item.get('code') for item in ports_data if isinstance(item, dict) and item.get('code')]
@@ -120,77 +120,49 @@ def main():
             print(f"   ✅ {code}: NAV = {nav} [{source}]")
             updated_count += 1
             
-            # อัปเดตราคา NAV ลงตาราง ports ใน schema scb
+            # อัปเดตราคา NAV ลงคอลัมน์ currentNav ในตาราง scb_funds
             try:
-                supabase.schema('scb').table('ports').update({'nav': nav}).eq('code', code).execute()
+                supabase.table('scb_funds').update({'currentNav': nav}).eq('code', code).execute()
             except Exception as e:
-                print(f"   ❌ อัปเดต NAV สำหรับ {code} ลง Supabase ล้มเหลว: {e}")
+                print(f"   ❌ อัปเดต NAV สำหรับ {code} ล้มเหลว: {e}")
         else:
             print(f"   ❌ {code}: ไม่พบข้อมูล NAV")
 
     # 3. คำนวณภาพรวมสรุปพอร์ตเมื่อดึง NAV สำเร็จ
     if updated_count > 0:
-        # อ่านข้อมูลพอร์ตอนใหม่หลังอัปเดต NAV แล้ว
-        fresh_ports = supabase.schema('scb').table('ports').select('*').execute().data or []
+        fresh_ports = supabase.table('scb_funds').select('*').execute().data or []
         
         total_value = 0
         total_cost = 0
-        total_daily_profit = 0
 
         for item in fresh_ports:
             if isinstance(item, dict):
                 units = float(item.get('units', 0))
-                nav_val = float(item.get('nav', 0))
-                cost_val = float(item.get('cost', 0)) # เงินต้นรวม
-                
-                prev_nav = float(item.get('prev_nav', item.get('nav_yesterday', nav_val)))
+                nav_val = float(item.get('currentNav', 0))
+                avg_nav = float(item.get('avgNav', 0))
                 
                 total_value += nav_val * units
-                total_cost += cost_val
-                total_daily_profit += (nav_val - prev_nav) * units
+                total_cost += avg_nav * units # คำนวณต้นทุนจาก avgNav * units
 
         total_profit = total_value - total_cost
-        total_profit_pct = (total_profit / total_cost * 100) if total_cost > 0 else 0
-
-        prev_total_value = total_value - total_daily_profit
-        daily_profit_pct = (total_daily_profit / prev_total_value * 100) if prev_total_value > 0 else 0
 
         # เวลาประเทศไทย UTC+7
         tz_th = timezone(timedelta(hours=7))
         now_th = datetime.now(tz_th)
-        now_th_iso = now_th.isoformat()
-        now_th_str = now_th.strftime('%d/%m/%Y %H:%M:%S')
         date_str = now_th.strftime("%d/%m/%y")
 
-        # 4. บันทึกเข้าตาราง scb_summary
-        summary_payload = {
-            'id': 'current',
-            'value': total_value,
-            'cost': total_cost,
-            'profit': total_profit,
-            'profit_pct': total_profit_pct,
-            'daily_profit': total_daily_profit,
-            'daily_profit_pct': daily_profit_pct,
-            'updated_at': now_th_iso,
-            'updated_at_str': now_th_str
-        }
-        try:
-            supabase.schema('scb').table('scb_summary').upsert(summary_payload).execute()
-        except Exception as e:
-            print(f"❌ อัปเดต scb_summary ล้มเหลว: {e}")
-
-        # 5. บันทึก History Snapshot ลงตาราง scb_history
+        # 4. บันทึก History Snapshot ลงตาราง scb_history
         history_payload = {
             'date': date_str,
             'val': total_value,
-            'profit': total_profit,
             'cost': total_cost,
-            'daily_profit': total_daily_profit,
-            'timestamp': now_th_iso
+            'profit': total_profit
+            # ตัด daily_profit ออกหากในตารางไม่มีคอลัมน์นี้
         }
         try:
-            supabase.schema('scb').table('scb_history').upsert(history_payload, on_conflict='date').execute()
-            print("   ✅ บันทึก NAV, Summary และ History Snapshot ลง Supabase เรียบร้อยแล้ว")
+            # ใช้ on_conflict หรือเงื่อนไขเพื่อไม่ให้บันทึกซ้ำวันเดิม (ต้องตั้ง date เป็น Unique ใน Supabase)
+            supabase.table('scb_history').upsert(history_payload).execute()
+            print("   ✅ บันทึก NAV และ History Snapshot ลง Supabase เรียบร้อยแล้ว")
         except Exception as e:
             print(f"❌ อัปเดต scb_history ล้มเหลว: {e}")
 
