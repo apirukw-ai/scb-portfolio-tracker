@@ -357,16 +357,18 @@
     </div>
 
     <script>
-        // ประกาศสร้าง Supabase Client
-const { createClient } = window.supabase;
-
-const SUPABASE_URL = 'https://iproktvvetsbxxmpptuj.supabase.co';
+// ประกาศสร้าง Supabase Client (ใช้ window.supabase Client เดิมที่มีอยู่แล้ว)
+if (typeof supabase === 'undefined') {
+    const { createClient } = window.supabase;
+    const SUPABASE_URL = 'https://iproktvvetsbxxmpptuj.supabase.co';
     const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imlwcm9rdHZ2ZXRzYnh4bXBwdHVqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODcyOTU3NDEsImV4cCI6MjEwMjg3MTc0MX0.Kc0USo30u4gvZNJ1bsOdD9k6nwEBcY7lNMAQxWEFzqw';
-const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
-  db: {
-    schema: 'scb' // 👈 ใส่ชื่อ Schema ที่สร้างแยกไว้สำหรับแอปนี้
-  }
-});
+
+    var supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+        db: {
+            schema: 'scb'
+        }
+    });
+}
 
 let funds = [];
 let historyLogs = [];
