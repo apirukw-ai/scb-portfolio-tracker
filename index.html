@@ -370,7 +370,7 @@
         // ใส่การเชื่อมต่อ Supabase แทน
 		const SUPABASE_URL = 'https://iproktvvetsbxxmpptuj.supabase.co'; // เปลี่ยนเป็น URL ของคุณ
 		const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imlwcm9rdHZ2ZXRzYnh4bXBwdHVqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODcyOTU3NDEsImV4cCI6MjEwMjg3MTc0MX0.Kc0USo30u4gvZNJ1bsOdD9k6nwEBcY7lNMAQxWEFzqw'; // เปลี่ยนเป็น Anon Key ของคุณ
-		const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+		const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
         
 		let funds = [];
         let historyLogs = [];
@@ -386,7 +386,7 @@
         console.log('START LOAD SCB DATA (Supabase)');
         
         // ดึงข้อมูลกองทุนจาก Table 'scb_funds'
-        const { data: fundsData, error: fundsError } = await supabase
+        const { data: fundsData, error: fundsError } = await supabaseClient
             .from('scb_funds') // เปลี่ยนชื่อตารางตรงนี้
             .select('*');
             
@@ -394,7 +394,7 @@
         funds = fundsData || [];
 
         // ดึงข้อมูลประวัติจาก Table 'scb_history'
-        const { data: histData, error: histError } = await supabase
+        const { data: histData, error: histError } = await supabaseClient
             .from('scb_history') // เปลี่ยนชื่อตารางตรงนี้
             .select('*');
             
@@ -427,10 +427,10 @@ function saveData() {
 
     try {
         if (id) {
-            const { error } = await supabase.from('scb_funds').update(fundData).eq('id', id);
+            const { error } = await supabaseClient.from('scb_funds').update(fundData).eq('id', id);
             if (error) throw error;
         } else {
-            const { error } = await supabase.from('scb_funds').insert([fundData]);
+            const { error } = await supabaseClient.from('scb_funds').insert([fundData]);
             if (error) throw error;
         }
         
@@ -447,7 +447,7 @@ function saveData() {
             if (!confirm('ต้องการลบกองทุนนี้ใช่หรือไม่?')) return;
             
             try {
-                const { error } = await supabase.from('scb_funds').delete().eq('id', id);
+                const { error } = await supabaseClient.from('scb_funds').delete().eq('id', id);
                 if (error) throw error;
                 
                 loadData(); // โหลดหน้าจอใหม่หลังลบเสร็จ
@@ -479,7 +479,7 @@ function saveData() {
     };
 
     try {
-        const { error } = await supabase.from('scb_history').insert([historyData]);
+        const { error } = await supabaseClient.from('scb_history').insert([historyData]);
         if (error) throw error;
         
         alert('บันทึกประวัติพอร์ตเรียบร้อยแล้ว');
