@@ -48,7 +48,12 @@ def get_nav_wealthx(code):
         try:
             url = f"https://www.wealthx.co/funds/{symbol}"
             res = requests.get(url, headers=HEADERS, timeout=8)
-            if res.status_code == 200:
+
+print(f"URL={url}")
+print(f"STATUS={res.status_code}")
+print(res.text[:500])
+
+if res.status_code == 200:
                 soup = BeautifulSoup(res.text, 'html.parser')
                 text = soup.get_text()
                 match = re.search(r'มูลค่าหน่วยลงทุน\s*\(NAV\)\s*(\d+\.\d{4})', text)
