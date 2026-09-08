@@ -49,23 +49,26 @@ def get_nav_wealthx(code):
             url = f"https://www.wealthx.co/funds/{symbol}"
             res = requests.get(url, headers=HEADERS, timeout=8)
 
-print(f"URL={url}")
-print(f"STATUS={res.status_code}")
-print(res.text[:500])
+            print(f"URL={url}")
+            print(f"STATUS={res.status_code}")
+            print(res.text[:500])
 
-if res.status_code == 200:
+            if res.status_code == 200:
                 soup = BeautifulSoup(res.text, 'html.parser')
                 text = soup.get_text()
-                match = re.search(r'มูลค่าหน่วยลงทุน\s*\(NAV\)\s*(\d+\.\d{4})', text)
+
+                match = re.search(
+                    r'มูลค่าหน่วยลงทุน\s*\(NAV\)\s*(\d+\.\d{4})',
+                    text
+                )
+
                 if match:
                     return float(match.group(1))
-                matches = re.findall(r'(\d+\.\d{4})', text)
-                if matches:
-                    return float(matches[0])
-        except Exception:
-            pass
-    return None
 
+        except Exception as e:
+            print(f"ERROR: {e}")
+
+    return None
 def get_nav_finnomena_page(code):
     for symbol in get_code_variations(code):
         try:
